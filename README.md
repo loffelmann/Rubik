@@ -64,6 +64,8 @@ Therefore, I picked a 2×2×2 cube, which only has 3,674,160 positions reachable
 (source: I counted them on my home computer), and after first 14 moves, there is nowhere else
 to wander away to.
 
+![2x2x2 Rubik's cube, scrambled](misc/cube.png)
+
 
 ## Canonization
 
