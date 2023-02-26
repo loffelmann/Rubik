@@ -250,24 +250,24 @@ class InverseScrambleGenerator:
 
 
 trainSeqGen = InverseScrambleGenerator(cube)
-seqCounts = np.arange(0, 50001, 2500)
+seqCounts = [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000]
 
-print("\ndata generator:", trainSeqGen)
+print("\ndata generator:", trainSeqGen, "\n")
 
 metricValues = dependencyOnTrainingData(
 	solver,
 	seqCounts,
 	trainSeqGen,
 	{
-		"success rate 5":  SuccessRateMetric( 5, 5000, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
-		"success rate 10": SuccessRateMetric(10, 5000, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
-		"success rate 20": SuccessRateMetric(20, 5000, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+		"success rate 5":  SuccessRateMetric( 5, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+		"success rate 10": SuccessRateMetric(10, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+		"success rate 20": SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 	},
 )
 
 for name, values in metricValues.items():
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, values)))
-	plt.plot(seqCounts, values, label=name)
+	plt.semilogx(np.maximum(seqCounts, 1), values, label=name)
 print()
 plt.ylim(0, 1)
 plt.grid()
