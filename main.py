@@ -133,7 +133,7 @@ class SuccessRateMetric:
 
 			rates.append(successRate)
 
-		return rates if isinstance(self.scramblingMoves, Sequence) else rates[0]
+		return rates if self._multipleCounts else rates[0]
 
 
 class _SuccessRateWorker:
@@ -195,6 +195,9 @@ def dependencyOnTrainingData(
 	The same training routine as `train`, interrupted by metric evaluations
 	"""
 	metricValues = { name: [] for name in metrics.keys() }
+
+	trainingSeqCounts = np.array(trainingSeqCounts, dtype=int)
+	assert (trainingSeqCounts[1:] >= trainingSeqCounts[:-1]).all(), "Training counts must be a growing sequence"
 	seqInd = 0
 	evalInd = 0
 
@@ -230,16 +233,16 @@ np.random.seed(randomSeed)
 
 
 canonization = {
-	"rotationEquivalent": True,
-	"colorSwapEquivalent": 1,
+#	"rotationEquivalent": True,
+#	"colorSwapEquivalent": 1,
 }
 
 print("\ncanonization:", canonization)
 
 
 
-cube = Rubik_2x2x2()
-#cube = Rubik_2x2x2(fixCorner=True)
+#cube = Rubik_2x2x2()
+cube = Rubik_2x2x2(fixCorner=True)
 
 print("\ncube:", cube)
 
