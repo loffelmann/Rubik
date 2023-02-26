@@ -128,6 +128,7 @@ def dependencyOnTrainingData(
 	"""
 	metricValues = { name: [] for name in metrics.keys() }
 	seqInd = 0
+	print() # space before progressbar
 	for nextSeqCnt in trainingSeqCounts:
 
 		# training
@@ -148,7 +149,10 @@ def dependencyOnTrainingData(
 ## Experiments #####################################################################################
 
 
-np.random.seed(1)
+randomSeed = 1
+print(f"\nrandom seed = {randomSeed}")
+np.random.seed(randomSeed)
+# ?? does torch need seeding?
 
 
 canonization = {
@@ -156,8 +160,14 @@ canonization = {
 	"colorSwapEquivalent": 1,
 }
 
+print("\ncanonization:", canonization)
+
+
+
 cube = Rubik_2x2x2()
 #cube = Rubik_2x2x2(fixCorner=True)
+
+print("\ncube:", cube)
 
 #cube.repl()
 
@@ -192,27 +202,46 @@ solver.setModel(nn.Sequential(
 optimizer = torch.optim.Adam(solver.getParam(), lr=1e-3)
 solver.setOptimizer(optimizer)
 
-milestones = [10, 30, 100, 300, 1000, 3000]
+schedulerParams = {
+	"milestones": [10, 30, 100, 300, 1000, 3000],
+	"gamma": 0.5,
+}
 scheduler = torch.optim.lr_scheduler.MultiStepLR(
 	optimizer,
-	milestones = milestones,
-	gamma = 0.5,
+	**schedulerParams,
 )
 solver.setScheduler(scheduler)
+
+print("\nsolver:", solver)
+print("scheduler params: ", schedulerParams)
 
 
 
 ## Train the solver ########################################
 
-def trainSeqGen(solver):
-	randomSolver = RandomSolver(solver.cube)
-	seq = randomSolver.generateSequence(
-		numMoves = 10,
-		init = CubeTransform(CubeTransformMethod.reset, {}),
-	)
-	return seq.invert().canonize(**canonization).check()
+class InverseScrambleGenerator:
 
+	def __init__(self, cube, numScrambleMoves=10):
+		self.solver = RandomSolver(cube)
+		self.numScrambleMoves = numScrambleMoves
+
+	def __call__(self, solver):
+		assert isinstance(solver.cube, self.solver.cube.__class__)
+		seq = self.solver.generateSequence(
+			numMoves = self.numScrambleMoves,
+			init = CubeTransform(CubeTransformMethod.reset, {}),
+		)
+		return seq.invert().canonize(**canonization).check()
+
+	def __str__(self):
+		return f"{self.__class__.__name__}(numScrambleMoves={self.numScrambleMoves})"
+
+
+trainSeqGen = InverseScrambleGenerator(cube)
 seqCounts = np.arange(0, 50001, 2500)
+
+print("\ndata generator:", trainSeqGen)
+
 metricValues = dependencyOnTrainingData(
 	solver,
 	seqCounts,
@@ -225,7 +254,9 @@ metricValues = dependencyOnTrainingData(
 )
 
 for name, values in metricValues.items():
+	print(f"\n{name}:\n\t" + "\n\t".join(map(str, values)))
 	plt.plot(seqCounts, values, label=name)
+print()
 plt.ylim(0, 1)
 plt.grid()
 plt.legend()

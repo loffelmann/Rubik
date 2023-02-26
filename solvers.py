@@ -217,6 +217,10 @@ class TorchMLPSolver(RubikSolver):
 			self.epochLen = epochLen
 
 
+	def __str__(self):
+		return f"{self.__class__.__name__}\nmodel={self.model.net}\noptimizer={self.optimizer}\nscheduler={self.scheduler}"
+
+
 	def getFeatures(self, position=None):
 		"""
 		Generates NN input for a single cube position

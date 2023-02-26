@@ -45,6 +45,8 @@ class Rubik_2x2x2:
 	"""
 
 	def __init__(self, *, fixCorner=False):
+		self._fixCorner = fixCorner
+
 		self._rememberedPositions = []
 
 		# Piece-swapping cube moves (like rotations of a face or of the whole cube);
@@ -106,6 +108,10 @@ class Rubik_2x2x2:
 	# I know a real Rubik's cube does not support color swaps, but they are good for elliminating
 	# symmetries, making the virtual puzzle smaller.
 	noColorSwap = (0, 1, 2, 3, 4, 5)
+
+
+	def __str__(self):
+		return f"{self.__class__.__name__}(fixCorner={self._fixCorner})"
 
 
 	## Accessing cube state ########################################################################
