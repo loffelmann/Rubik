@@ -173,13 +173,14 @@ class Rubik_2x2x2:
 	def reset(self):
 		self.position = self.faces.copy()
 
-	def scramble(self, moves=30):
+	def scramble(self, moves=30, seed=None):
+		rng = np.random.default_rng(seed)
 		for i in range(moves):
-			moveInd = np.random.randint(len(self.solvingMoves))
+			moveInd = rng.integers(len(self.solvingMoves))
 			move = self.solvingMoves[moveInd]
 			self.move(move)
 
-	def init(self, steps=[]):
+	def init(self, steps=[], seed=None):
 		"""
 		Performs a sequence of higher-level actions - right now either "reset" or "scramble"
 		"""
@@ -189,7 +190,10 @@ class Rubik_2x2x2:
 			if step.method == CubeTransformMethod.reset:
 				self.reset(**step.kwargs)
 			elif step.method == CubeTransformMethod.scramble:
-				self.scramble(**step.kwargs)
+				kwargs = {**step.kwargs}
+				if kwargs.get("seed") is None:
+					kwargs["seed"] = seed
+				self.scramble(**kwargs)
 			else:
 				raise ValueError(f"Unknown init method: {step.method}")
 

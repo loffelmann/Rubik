@@ -13,10 +13,11 @@ class RubikSolver:
 	Base class for Rubik's cube solvers
 	"""
 
-	def __init__(self, cube, canonization={}):
+	def __init__(self, cube, canonization={}, seed=None):
 		self.cube = cube
 		self.moves = cube.solvingMoves
 		self.invMoves = { move: i for i, move in enumerate(self.moves) }
+		self.rng = np.random.default_rng(seed)
 
 		# canonization options specified here will be applied automatically before
 		# each call of the solving algorithm implemented in `self._generateMoves`
@@ -52,11 +53,13 @@ class RubikSolver:
 		return move
 
 
-	def generateSequence(self, *, numMoves=100, init=[]):
+	def generateSequence(self, *, numMoves=100, init=[], seed=None):
 		"""
 		Generates the specified number of moves and makes a `MoveSequence` out of them
 		"""
-		self.cube.init(init)
+		if seed is not None:
+			self.rng = np.random.default_rng(seed)
+		self.cube.init(init, seed=self.rng.integers(0x7FFFFFFFFFFFFFFF))
 		self.reset()
 
 		initPosition = self.cube.getPosition()
@@ -98,7 +101,7 @@ class RandomSolver(RubikSolver):
 	"""
 
 	def _generateMoves(self, position=None):
-		moveInd = np.random.randint(len(self.moves))
+		moveInd = self.rng.integers(len(self.moves))
 		return self.moves[moveInd]
 
 
@@ -141,7 +144,7 @@ class MemorizeSolver(RubikSolver):
 		else:
 			self.notFound += 1
 			if self.random:
-				return self.moves[np.random.randint(len(self.moves))] # random instead of noMove
+				return self.moves[self.rng.integers(len(self.moves))] # random instead of noMove
 			else:
 				return noMove
 
@@ -294,7 +297,7 @@ class TorchMLPSolver(RubikSolver):
 		elif self.predictMode == "probability":
 			probability = softmax(output[0].detach().numpy())
 			try:
-				index = np.random.choice(np.arange(len(self.moves)), p=probability)
+				index = self.rng.choice(np.arange(len(self.moves)), p=probability)
 			except:
 				breakpoint()
 			return self.moves[index]
