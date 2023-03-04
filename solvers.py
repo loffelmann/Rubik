@@ -221,7 +221,12 @@ class TorchMLPSolver(RubikSolver):
 
 
 	def __str__(self):
-		return f"{self.__class__.__name__}\nmodel={self.model.net}\noptimizer={self.optimizer}\nscheduler={self.scheduler}"
+		return f"""{self.__class__.__name__}(
+  model={self.model.net}
+  optimizer={self.optimizer}
+  scheduler={self.scheduler}
+  epochLen={self.epochLen}
+)"""
 
 
 	def getFeatures(self, position=None):
@@ -259,6 +264,16 @@ class TorchMLPSolver(RubikSolver):
 #	def lowerLearningRate(self):
 #		for group in self.optimizer.param_groups:
 #			group["lr"] = max(group["lr"]/(1+self.lrSpeed), 1e-7)
+
+	def getLearningRate(self):
+		minLR = np.inf
+		maxLR = -np.inf
+		for group in self.optimizer.param_groups:
+			minLR = min(minLR, group["lr"])
+			maxLR = max(maxLR, group["lr"])
+		if minLR == maxLR:
+			return minLR
+		return (minLR, maxLR)
 
 
 	def trainOnSequence(self, seq):
