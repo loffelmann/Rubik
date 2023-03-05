@@ -118,7 +118,7 @@ def learningRateMetric(solver, **kwargs):
 
 
 def trainingDataAmountMetric(seqInd, **kwargs):
-	return seqInd
+	return seqInd+1
 
 
 
