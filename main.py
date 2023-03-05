@@ -22,12 +22,10 @@ class SuccessRateMetric:
 	"""
 	Generates `samples` starting positions scrambled by `scramblingMoves` moves,
 	measures how often can the solver reach solved position.
-	`scramblingMoves` can be a list (a list of sucess rates is returned then).
 	"""
 
 	def __init__(self, scramblingMoves, samples=100, seqLength=100, measureFails=False, threads=1, seed=None):
-		self._multipleCounts = isinstance(scramblingMoves, Sequence)
-		self.scramblingMoves = scramblingMoves if self._multipleCounts else [scramblingMoves]
+		self.scramblingMoves = scramblingMoves
 		self.samples = samples
 		self.seqLength = seqLength
 		self.measureFails = measureFails
@@ -36,35 +34,31 @@ class SuccessRateMetric:
 
 	def __call__(self, solver, **kwargs):
 		rng = np.random.default_rng(self.seed)
-		rates = []
-		for scMoveCount in self.scramblingMoves:
 
-			if self.threads > 1:
-				threadSamples = (self.samples+self.threads-1) // self.threads
-				worker = _SuccessRateWorker(solver, threadSamples, scMoveCount, self.seqLength)
-				seeds = [rng.integers(0x7FFFFFFFFFFFFFFF) for _ in range(self.threads)]
-				with multiprocessing.Pool(self.threads) as pool:
-					numsSolved = pool.map(worker, seeds)
-				successRate = sum(numsSolved) / (self.threads*threadSamples)
+		if self.threads > 1:
+			threadSamples = (self.samples+self.threads-1) // self.threads
+			worker = _SuccessRateWorker(solver, threadSamples, self.scramblingMoves, self.seqLength)
+			seeds = [rng.integers(0x7FFFFFFFFFFFFFFF) for _ in range(self.threads)]
+			with multiprocessing.Pool(self.threads) as pool:
+				numsSolved = pool.map(worker, seeds)
+			successRate = sum(numsSolved) / (self.threads*threadSamples)
 
-			else:
-				numSolved = 0
-				for seqInd in range(self.samples):
-					seq = solver.generateSequence(
-						numMoves = self.seqLength,
-						init = [
-							CubeTransform(CubeTransformMethod.reset, {}),
-							CubeTransform(CubeTransformMethod.scramble, {"moves": scMoveCount}),
-						],
-						seed = rng.integers(0x7FFFFFFFFFFFFFFF),
-					)
-					if seq.isSolved():
-						numSolved += 1
-				successRate = numSolved / self.samples
+		else:
+			numSolved = 0
+			for seqInd in range(self.samples):
+				seq = solver.generateSequence(
+					numMoves = self.seqLength,
+					init = [
+						CubeTransform(CubeTransformMethod.reset, {}),
+						CubeTransform(CubeTransformMethod.scramble, {"moves": self.scramblingMoves}),
+					],
+					seed = rng.integers(0x7FFFFFFFFFFFFFFF),
+				)
+				if seq.isSolved():
+					numSolved += 1
+			successRate = numSolved / self.samples
 
-			rates.append(1-successRate if self.measureFails else successRate)
-
-		return rates if self._multipleCounts else rates[0]
+		return 1-successRate if self.measureFails else successRate
 
 
 class _SuccessRateWorker:
