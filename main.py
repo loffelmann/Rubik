@@ -29,7 +29,7 @@ class SuccessRateMetric:
 		samples = 100,
 		seqLength = 100,
 		measureFails = False,
-		measureMoves = False,
+		measureMoves = True,
 		threads = 1,
 		seed = None,
 	):
@@ -151,7 +151,12 @@ def dependencyOnTrainingData(
 	"""
 	The same training routine as `train`, interrupted by metric evaluations
 	"""
-	metricValues = { name: [] for name in metrics.keys() }
+	metricValues = {}
+	for name in metrics.keys():
+		if isinstance(name, tuple):
+			metricValues.update({ subName: [] for subName in name })
+		else:
+			metricValues[name] = []
 
 	trainingSeqCounts = np.array(trainingSeqCounts, dtype=int)
 	assert (trainingSeqCounts[1:] >= trainingSeqCounts[:-1]).all(), "Training counts must be a growing sequence"
@@ -176,7 +181,13 @@ def dependencyOnTrainingData(
 				seqInd = seqInd,
 				evalInd = evalInd,
 			)
-			metricValues[name].append(value)
+			if isinstance(name, tuple):
+				assert len(name) == len(value), \
+				       f"Expected {len(name)} metric values, found {len(value)}"
+				for subName, subValue in zip(name, value):
+					metricValues[subName].append(subValue)
+			else:
+				metricValues[name].append(value)
 		evalInd += 1
 		progressbar(evals=evalInd)
 
@@ -271,7 +282,14 @@ schedulerParams = {
 	"factor": 0.5,
 }
 scheduler = MyReduceLROnPlateau(
-	SuccessRateMetric(10, 500, measureFails=True, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+	SuccessRateMetric(
+		scramblingMoves = 10,
+		samples = 500,
+		measureFails = True,
+		measureMoves = False,
+		threads = 6,
+		seed = np.random.randint(0x7FFFFFFFFFFFFFFF),
+	),
 	{ "solver": solver },
 	optimizer,
 	**schedulerParams,
@@ -315,9 +333,12 @@ metricValues = dependencyOnTrainingData(
 	seqCounts,
 	trainSeqGen,
 	{
-		"success rate 5":  SuccessRateMetric( 5, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
-		"success rate 10": SuccessRateMetric(10, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
-		"success rate 20": SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+		("success rate 5", "moves needed 5"):
+			SuccessRateMetric( 5, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+		("success rate 10", "moves needed 10"):
+			SuccessRateMetric(10, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+		("success rate 20", "moves needed 20"):
+			SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"learning rate": learningRateMetric,
 		"train sequences": trainingDataAmountMetric,
 	},
@@ -336,19 +357,27 @@ plt.grid()
 plt.legend()
 
 plt.subplot(212)
-name = "learning rate"
-print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
-plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
+for name in ["moves needed 5", "moves needed 10", "moves needed 20"]:
+	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
+	plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
 plt.grid()
 plt.legend()
 
+#plt.subplot(212)
+#name = "learning rate"
+#print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
+#plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
+#plt.grid()
+#plt.legend()
+
 plt.show()
+
 
 print("\nFully trained solver performance:")
 for scMoves in range(2, 31, 2):
 	metric = SuccessRateMetric(scMoves, 5000, threads=6)
-	value = metric(solver)
-	print(f"  success rate {scMoves} = {value}")
+	solved, moves = metric(solver)
+	print(f"  success rate {scMoves} = {solved:.3f}, median moves {moves}")
 
 breakpoint()
 
