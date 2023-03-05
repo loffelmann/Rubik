@@ -63,6 +63,10 @@ class Progressbar:
 				print()
 
 
+	def end(self):
+		print()
+
+
 	def __str__(self):
 		return f"{self.message}[{'#'*self.lastCnt}{'-'*(self.length-self.lastCnt)}]"
 

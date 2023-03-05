@@ -103,7 +103,7 @@ def learningRateMetric(solver, **kwargs):
 		return np.nan
 
 
-def numTrainSequencesMetric(seqInd, **kwargs):
+def trainingDataAmountMetric(seqInd, **kwargs):
 	return seqInd
 
 
@@ -172,6 +172,7 @@ def dependencyOnTrainingData(
 			evalInd = evalInd,
 			metricValues = metricValues,
 		):
+			progressbar.end()
 			break
 
 	return metricValues
@@ -304,7 +305,7 @@ metricValues = dependencyOnTrainingData(
 		"success rate 10": SuccessRateMetric(10, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"success rate 20": SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"learning rate": learningRateMetric,
-		"train sequences": numTrainSequencesMetric,
+		"train sequences": trainingDataAmountMetric,
 	},
 	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7,
 )
