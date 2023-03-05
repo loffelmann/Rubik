@@ -128,6 +128,7 @@ def dependencyOnTrainingData(
 	trainingSeqCounts, # growing sequence expected (describes cumulative training)
 	trainingSeqGenerator, # function(solver) -> MoveSequence
 	metrics, # dict of "metric name": function(solver) -> value
+	earlyStop = None,
 ):
 	"""
 	The same training routine as `train`, interrupted by metric evaluations
@@ -156,6 +157,14 @@ def dependencyOnTrainingData(
 			metricValues[name].append(value)
 		evalInd += 1
 		progressbar(evals=evalInd)
+
+		# stopping condition
+		if earlyStop is not None and earlyStop(
+			seqInd = seqInd,
+			evalInd = evalInd,
+			metricValues = metricValues,
+		):
+			break
 
 	return metricValues
 
@@ -279,7 +288,8 @@ class InverseScrambleGenerator:
 
 
 trainSeqGen = InverseScrambleGenerator(cube)
-seqCounts = [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000]
+seqCounts = [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000,
+             1200000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000]
 
 print("\ndata generator:", trainSeqGen, "\n")
 
@@ -293,6 +303,7 @@ metricValues = dependencyOnTrainingData(
 		"success rate 20": SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"learning rate": learningRateMetric,
 	},
+	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7,
 )
 
 print(f"\nnumber of training sequences:\n\t" + "\n\t".join(map(str, seqCounts)))
@@ -300,7 +311,7 @@ print(f"\nnumber of training sequences:\n\t" + "\n\t".join(map(str, seqCounts)))
 plt.subplot(211)
 for name in ["success rate 5", "success rate 10", "success rate 20"]:
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
-	plt.semilogx(np.maximum(seqCounts, 1), metricValues[name], label=name)
+	plt.semilogx(np.maximum(seqCounts[:len(metricValues[name])], 1), metricValues[name], label=name)
 plt.ylim(0, 1)
 plt.grid()
 plt.legend()
@@ -308,7 +319,7 @@ plt.legend()
 plt.subplot(212)
 name = "learning rate"
 print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
-plt.semilogx(np.maximum(seqCounts, 1), metricValues[name], label=name)
+plt.semilogx(np.maximum(seqCounts[:len(metricValues[name])], 1), metricValues[name], label=name)
 plt.grid()
 plt.legend()
 
