@@ -25,11 +25,12 @@ class SuccessRateMetric:
 	`scramblingMoves` can be a list (a list of sucess rates is returned then).
 	"""
 
-	def __init__(self, scramblingMoves, samples=100, seqLength=100, threads=1, seed=None):
+	def __init__(self, scramblingMoves, samples=100, seqLength=100, measureFails=False, threads=1, seed=None):
 		self._multipleCounts = isinstance(scramblingMoves, Sequence)
 		self.scramblingMoves = scramblingMoves if self._multipleCounts else [scramblingMoves]
 		self.samples = samples
 		self.seqLength = seqLength
+		self.measureFails = measureFails
 		self.threads = threads
 		self.seed = seed
 
@@ -61,7 +62,7 @@ class SuccessRateMetric:
 						numSolved += 1
 				successRate = numSolved / self.samples
 
-			rates.append(successRate)
+			rates.append(1-successRate if self.measureFails else successRate)
 
 		return rates if self._multipleCounts else rates[0]
 
@@ -216,15 +217,41 @@ solver.setModel(nn.Sequential(
 optimizer = torch.optim.Adam(solver.getParam(), lr=1e-3)
 solver.setOptimizer(optimizer)
 
+
+#schedulerParams = {
+#	"milestones": [10, 30, 100, 300, 1000, 3000],
+#	"gamma": 0.5,
+#}
+#scheduler = torch.optim.lr_scheduler.MultiStepLR(
+#	optimizer,
+#	**schedulerParams,
+#)
+#solver.setScheduler(scheduler)
+
+
+class MyReduceLROnPlateau(torch.optim.lr_scheduler.ReduceLROnPlateau):
+
+	def __init__(self, metric, metricKwargs, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.my_metric = metric
+		self.my_metric_kwargs = metricKwargs
+
+	def step(self):
+		loss = self.my_metric(**self.my_metric_kwargs)
+		return super().step(loss)
+
 schedulerParams = {
-	"milestones": [10, 30, 100, 300, 1000, 3000],
-	"gamma": 0.5,
+	"patience": 3,
+	"factor": 0.5,
 }
-scheduler = torch.optim.lr_scheduler.MultiStepLR(
+scheduler = MyReduceLROnPlateau(
+	SuccessRateMetric(10, 500, measureFails=True, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+	{ "solver": solver },
 	optimizer,
 	**schedulerParams,
 )
-solver.setScheduler(scheduler)
+solver.setScheduler(scheduler, 10000)
+
 
 print("\nsolver:", solver)
 print("scheduler params: ", schedulerParams)
