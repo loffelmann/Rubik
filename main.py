@@ -34,7 +34,7 @@ class SuccessRateMetric:
 		self.threads = threads
 		self.seed = seed
 
-	def __call__(self, solver):
+	def __call__(self, solver, **kwargs):
 		rng = np.random.default_rng(self.seed)
 		rates = []
 		for scMoveCount in self.scramblingMoves:
@@ -67,13 +67,6 @@ class SuccessRateMetric:
 		return rates if self._multipleCounts else rates[0]
 
 
-def learningRateMetric(solver):
-	if hasattr(solver, "getLearningRate"):
-		return solver.getLearningRate()
-	else:
-		return np.nan
-
-
 class _SuccessRateWorker:
 	"""
 	A multiprocessing worker to parallelize `SuccessRateMetric`.
@@ -101,6 +94,17 @@ class _SuccessRateWorker:
 			if seq.isSolved():
 				numSolved += 1
 		return numSolved
+
+
+def learningRateMetric(solver, **kwargs):
+	if hasattr(solver, "getLearningRate"):
+		return solver.getLearningRate()
+	else:
+		return np.nan
+
+
+def numTrainSequencesMetric(seqInd, **kwargs):
+	return seqInd
 
 
 
@@ -153,7 +157,11 @@ def dependencyOnTrainingData(
 
 		# measurement
 		for name, metric in metrics.items():
-			value = metric(solver)
+			value = metric(
+				solver = solver,
+				seqInd = seqInd,
+				evalInd = evalInd,
+			)
 			metricValues[name].append(value)
 		evalInd += 1
 		progressbar(evals=evalInd)
@@ -296,16 +304,18 @@ metricValues = dependencyOnTrainingData(
 		"success rate 10": SuccessRateMetric(10, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"success rate 20": SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"learning rate": learningRateMetric,
+		"train sequences": numTrainSequencesMetric,
 	},
 	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7,
 )
 
-print(f"\nnumber of training sequences:\n\t" + "\n\t".join(map(str, seqCounts)))
+name = "train sequences"
+print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
 
 plt.subplot(211)
 for name in ["success rate 5", "success rate 10", "success rate 20"]:
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
-	plt.semilogx(np.maximum(seqCounts[:len(metricValues[name])], 1), metricValues[name], label=name)
+	plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
 plt.ylim(0, 1)
 plt.grid()
 plt.legend()
@@ -313,7 +323,7 @@ plt.legend()
 plt.subplot(212)
 name = "learning rate"
 print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
-plt.semilogx(np.maximum(seqCounts[:len(metricValues[name])], 1), metricValues[name], label=name)
+plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
 plt.grid()
 plt.legend()
 
