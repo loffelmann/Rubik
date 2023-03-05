@@ -173,12 +173,6 @@ def dependencyOnTrainingData(
 ## Experiments #####################################################################################
 
 
-randomSeed = 1
-print(f"\nrandom seed = {randomSeed}")
-np.random.seed(randomSeed)
-# ?? does torch need seeding?
-
-
 canonization = {
 #	"rotationEquivalent": True,
 #	"colorSwapEquivalent": 1,
