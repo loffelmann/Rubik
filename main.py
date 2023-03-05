@@ -330,6 +330,12 @@ plt.legend()
 
 plt.show()
 
+print("\nFully trained solver performance:")
+for scMoves in range(2, 31, 2):
+	metric = SuccessRateMetric(scMoves, 5000, threads=6)
+	value = metric(solver)
+	print(f"  success rate {scMoves} = {value}")
+
 breakpoint()
 
 
