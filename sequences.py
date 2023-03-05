@@ -90,6 +90,17 @@ class MoveSequence:
 			return self.cube.isSolved(position=self.positions[-1, :])
 
 
+	def getSolvedIndex(self):
+		"""
+		Finds index of the first position in sequence which is solved.
+		Returns -1 if no solved position found.
+		"""
+		for i in range(len(self.positions)):
+			if self.cube.isSolved(position=self.positions[i, :]):
+				return i
+		return -1
+
+
 
 	## Sequence transforms #########################################################################
 

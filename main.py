@@ -24,11 +24,20 @@ class SuccessRateMetric:
 	measures how often can the solver reach solved position.
 	"""
 
-	def __init__(self, scramblingMoves, samples=100, seqLength=100, measureFails=False, threads=1, seed=None):
+	def __init__(self,
+		scramblingMoves,
+		samples = 100,
+		seqLength = 100,
+		measureFails = False,
+		measureMoves = False,
+		threads = 1,
+		seed = None,
+	):
 		self.scramblingMoves = scramblingMoves
 		self.samples = samples
 		self.seqLength = seqLength
 		self.measureFails = measureFails
+		self.measureMoves = measureMoves
 		self.threads = threads
 		self.seed = seed
 
@@ -40,11 +49,13 @@ class SuccessRateMetric:
 			worker = _SuccessRateWorker(solver, threadSamples, self.scramblingMoves, self.seqLength)
 			seeds = [rng.integers(0x7FFFFFFFFFFFFFFF) for _ in range(self.threads)]
 			with multiprocessing.Pool(self.threads) as pool:
-				numsSolved = pool.map(worker, seeds)
-			successRate = sum(numsSolved) / (self.threads*threadSamples)
+				results = pool.map(worker, seeds)
+			successRate = sum(r[0] for r in results) / (self.threads*threadSamples)
+			solvedInds = sum((r[1] for r in results), [])
 
 		else:
 			numSolved = 0
+			solvedInds = []
 			for seqInd in range(self.samples):
 				seq = solver.generateSequence(
 					numMoves = self.seqLength,
@@ -54,11 +65,17 @@ class SuccessRateMetric:
 					],
 					seed = rng.integers(0x7FFFFFFFFFFFFFFF),
 				)
-				if seq.isSolved():
+				solvedInd = seq.getSolvedIndex()
+				if solvedInd >= 0:
 					numSolved += 1
+					solvedInds.append(solvedInd)
 			successRate = numSolved / self.samples
 
-		return 1-successRate if self.measureFails else successRate
+		rate = 1-successRate if self.measureFails else successRate
+		if self.measureMoves:
+			return rate, np.median(solvedInds)
+		else:
+			return rate
 
 
 class _SuccessRateWorker:
@@ -76,6 +93,7 @@ class _SuccessRateWorker:
 	def __call__(self, seed=None):
 		rng = np.random.default_rng(seed)
 		numSolved = 0
+		solvedInds = []
 		for seqInd in range(self.numSamples):
 			seq = self.solver.generateSequence(
 				numMoves = self.seqLength,
@@ -85,9 +103,11 @@ class _SuccessRateWorker:
 				],
 				seed = rng.integers(0x7FFFFFFFFFFFFFFF),
 			)
-			if seq.isSolved():
+			solvedInd = seq.getSolvedIndex()
+			if solvedInd >= 0:
 				numSolved += 1
-		return numSolved
+				solvedInds.append(solvedInd)
+		return numSolved, solvedInds
 
 
 def learningRateMetric(solver, **kwargs):
