@@ -117,6 +117,13 @@ def learningRateMetric(solver, **kwargs):
 		return np.nan
 
 
+def memorySizeMetric(solver, **kwargs):
+	if hasattr(solver, "getMemorySize"):
+		return solver.getMemorySize()
+	else:
+		return np.nan
+
+
 def trainingDataAmountMetric(seqInd, **kwargs):
 	return seqInd+1
 
@@ -340,13 +347,14 @@ metricValues = dependencyOnTrainingData(
 		("success rate 20", "moves needed 20"):
 			SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"learning rate": learningRateMetric,
+		"memory size": memorySizeMetric,
 		"train sequences": trainingDataAmountMetric,
 	},
 	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7,
 )
 
-name = "train sequences"
-print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
+for name in ["memory size", "learning rate", "train sequences"]:
+	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
 
 plt.subplot(211)
 for name in ["success rate 5", "success rate 10", "success rate 20"]:
@@ -362,13 +370,6 @@ for name in ["moves needed 5", "moves needed 10", "moves needed 20"]:
 	plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
 plt.grid()
 plt.legend()
-
-#plt.subplot(212)
-#name = "learning rate"
-#print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
-#plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
-#plt.grid()
-#plt.legend()
 
 plt.show()
 

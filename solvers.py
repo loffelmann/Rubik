@@ -148,6 +148,9 @@ class MemorizeSolver(RubikSolver):
 			else:
 				return noMove
 
+	def getMemorySize(self):
+		return len(self.memory)
+
 
 ####################################################################################################
 
