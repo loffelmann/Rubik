@@ -278,6 +278,9 @@ class TorchMLPSolver(RubikSolver):
 			return minLR
 		return (minLR, maxLR)
 
+	def getNumWeights(self):
+		return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+
 
 	def trainOnSequence(self, seq):
 		"""

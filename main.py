@@ -117,6 +117,13 @@ def learningRateMetric(solver, **kwargs):
 		return np.nan
 
 
+def numWeightsMetric(solver, **kwargs):
+	if hasattr(solver, "getNumWeights"):
+		return solver.getNumWeights()
+	else:
+		return np.nan
+
+
 def memorySizeMetric(solver, **kwargs):
 	if hasattr(solver, "getMemorySize"):
 		return solver.getMemorySize()
@@ -348,12 +355,13 @@ metricValues = dependencyOnTrainingData(
 			SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"learning rate": learningRateMetric,
 		"memory size": memorySizeMetric,
+		"num weights": numWeightsMetric,
 		"train sequences": trainingDataAmountMetric,
 	},
 	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7,
 )
 
-for name in ["memory size", "learning rate", "train sequences"]:
+for name in ["memory size", "num weights", "learning rate", "train sequences"]:
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
 
 plt.subplot(211)
