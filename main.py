@@ -263,9 +263,9 @@ solver = TorchMLPSolver(cube, canonization)
 
 solver.setModel(nn.Sequential(
 	nn.Linear(solver.numFeatures, 50),
-	nn.ReLU(),
+	nn.SiLU(),
 	nn.Linear(50, 50),
-	nn.ReLU(),
+	nn.SiLU(),
 	nn.Linear(50, solver.numMoves),
 ))
 
