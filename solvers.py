@@ -131,7 +131,7 @@ class MemorizeSolver(RubikSolver):
 	def _generateMoves(self, position=None):
 		if position is None:
 			position = self.cube.position
-		if self.cube.getScore(position=position) >= self.cube.maxScore - 1e-9:
+		if self.cube.isSolved(position=position):
 			return noMove
 		position = tuple(position)
 		if position in self.memory:
@@ -302,7 +302,7 @@ class TorchMLPSolver(RubikSolver):
 		if position is None:
 			position = self.cube.position
 
-		if self.cube.getScore(position=position) >= self.cube.maxScore - 1e-9:
+		if self.cube.isSolved(position=position):
 			return noMove
 
 		self.model.eval()
