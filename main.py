@@ -387,7 +387,7 @@ plt.show()
 
 
 print("\nFully trained solver performance:")
-for scMoves in range(2, 31, 2):
+for scMoves in list(range(2, 31, 2))+[50, 100]:
 	metric = SuccessRateMetric(scMoves, 5000, threads=6)
 	solved, moves = metric(solver)
 	print(f"  success rate {scMoves} = {solved:.3f}, median moves {moves}")
