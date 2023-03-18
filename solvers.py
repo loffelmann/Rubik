@@ -117,12 +117,8 @@ class MemorizeSolver(RubikSolver):
 	def __init__(self, *args, random=False, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.random = random
-
-	def reset(self):
-		super().reset()
 		self.memory = {}
-		self.found = 0
-		self.notFound = 0
+		self.found = self.notFound = 0
 
 	def trainOnSequence(self, seq, **whatever):
 		"""
