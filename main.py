@@ -15,6 +15,10 @@ from resources import *
 
 
 
+import time
+startTime = time.time()
+
+
 ## Metrics for solver evaluation ###################################################################
 
 
@@ -388,6 +392,7 @@ for scMoves in range(2, 31, 2):
 	solved, moves = metric(solver)
 	print(f"  success rate {scMoves} = {solved:.3f}, median moves {moves}")
 
+print(f"\nduration: {round((time.time()-startTime)/60)} min")
 breakpoint()
 
 
