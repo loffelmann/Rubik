@@ -176,6 +176,7 @@ class TorchMLPSolver(RubikSolver):
 		self.predictMode = predictMode
 
 		self.loss = loss if loss is not None else torch.nn.CrossEntropyLoss()
+		self.temperature = 1.0
 
 		self.model = None
 		self.device = device
@@ -313,7 +314,7 @@ class TorchMLPSolver(RubikSolver):
 			index = torch.argmax(output).item()
 			return self.moves[index]
 		elif self.predictMode == "probability":
-			probability = softmax(output[0].detach().numpy())
+			probability = softmax(output[0].detach().numpy() / self.temperature)
 			try:
 				index = self.rng.choice(np.arange(len(self.moves)), p=probability)
 			except:
@@ -331,4 +332,5 @@ def softermax(x):
 	xPos = (np.sqrt(x*x+1) + x) * 0.5
 #	xPos = xPos - xPos.min() + 1.0
 	return xPos / xPos.sum()
+
 
