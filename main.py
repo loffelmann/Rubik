@@ -138,6 +138,9 @@ def memorySizeMetric(solver, **kwargs):
 def trainingDataAmountMetric(seqInd, **kwargs):
 	return seqInd+1
 
+def trainingDurationMetric(trainingDuration, **kwargs):
+	return trainingDuration
+
 
 
 ## Training methods ################################################################################
@@ -180,16 +183,19 @@ def dependencyOnTrainingData(
 	assert (trainingSeqCounts[1:] >= trainingSeqCounts[:-1]).all(), "Training counts must be a growing sequence"
 	seqInd = 0
 	evalInd = 0
+	trainingDuration = 0
 
 	progressbar = Progressbar("measure: ", samples=trainingSeqCounts[-1], evals=len(trainingSeqCounts))
 	for nextSeqCnt in trainingSeqCounts:
 
 		# training
+		trainingStart = time.time()
 		for seqInd in range(seqInd, nextSeqCnt):
 			seq = trainingSeqGenerator(solver)
 			solver.trainOnSequence(seq)
 			if seqInd % 100 == 0: # do not eval fancy progressbar too often
 				progressbar(samples=seqInd+1)
+		trainingDuration += time.time() - trainingStart
 		progressbar(samples=seqInd+1)
 
 		# measurement
@@ -198,6 +204,7 @@ def dependencyOnTrainingData(
 				solver = solver,
 				seqInd = seqInd,
 				evalInd = evalInd,
+				trainingDuration = trainingDuration,
 			)
 			if isinstance(name, tuple):
 				assert len(name) == len(value), \
@@ -361,11 +368,12 @@ metricValues = dependencyOnTrainingData(
 		"memory size": memorySizeMetric,
 		"num weights": numWeightsMetric,
 		"train sequences": trainingDataAmountMetric,
+		"training duration": trainingDurationMetric,
 	},
 	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7,
 )
 
-for name in ["memory size", "num weights", "learning rate", "train sequences"]:
+for name in ["memory size", "num weights", "learning rate", "train sequences", "training duration"]:
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
 
 plt.subplot(211)
