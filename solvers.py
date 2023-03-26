@@ -222,6 +222,7 @@ class TorchMLPSolver(RubikSolver):
 	def __str__(self):
 		return f"""{self.__class__.__name__}(
   model={self.model.net}
+  loss={self.loss}
   optimizer={self.optimizer}
   scheduler={self.scheduler}
   epochLen={self.epochLen}

@@ -5,6 +5,7 @@ import multiprocessing
 import numpy as np
 import matplotlib.pyplot as plt
 
+import torch
 from torch import nn
 
 
@@ -77,7 +78,7 @@ class SuccessRateMetric:
 
 		rate = 1-successRate if self.measureFails else successRate
 		if self.measureMoves:
-			return rate, np.median(solvedInds)
+			return rate, np.median(solvedInds) if solvedInds else np.nan
 		else:
 			return rate
 
@@ -273,6 +274,8 @@ solver.setModel(nn.Sequential(
 	nn.SiLU(),
 	nn.Linear(50, 50),
 	nn.SiLU(),
+	nn.Linear(50, 50),
+	nn.SiLU(),
 	nn.Linear(50, solver.numMoves),
 ))
 
@@ -393,12 +396,14 @@ plt.legend()
 
 plt.show()
 
+def finalMeas():
+	for scMoves in list(range(2, 31, 2))+[50, 100]:
+		metric = SuccessRateMetric(scMoves, 5000, threads=6)
+		solved, moves = metric(solver)
+		print(f"  success rate {scMoves} = {solved:.3f}, median moves {moves}")
 
 print("\nFully trained solver performance:")
-for scMoves in list(range(2, 31, 2))+[50, 100]:
-	metric = SuccessRateMetric(scMoves, 5000, threads=6)
-	solved, moves = metric(solver)
-	print(f"  success rate {scMoves} = {solved:.3f}, median moves {moves}")
+finalMeas()
 
 print(f"\nduration: {round((time.time()-startTime)/60)} min")
 breakpoint()
