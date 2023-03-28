@@ -27,17 +27,14 @@ class MoveSequence:
 	"""
 
 
-	def __init__(self, cube, positions=None, moves=None, scores=None):
+	def __init__(self, cube, positions=None, moves=None):
 		if positions is None:
 			positions = np.empty((0, len(cube.faces)))
 		if moves is None:
 			moves = []
-		if scores is None:
-			scores = [None]*len(positions)
 		self.cube = cube
 		self.positions = positions.copy()
 		self.moves = moves.copy()
-		self.scores = scores.copy()
 
 
 
@@ -65,7 +62,7 @@ class MoveSequence:
 		"""
 		Checks that positions correspond to moves
 		"""
-		assert len(self.positions) == len(self.moves)+1 == len(self.scores)
+		assert len(self.positions) == len(self.moves)+1
 		self.cube.setPosition(self.positions[0, :])
 		for i, move in enumerate(self.moves, start=1):
 			self.cube.move(move)
@@ -114,7 +111,6 @@ class MoveSequence:
 			cube = self.cube,
 			positions = self.positions[::-1, ...],
 			moves = [self.cube.invertMove(m) for m in self.moves[::-1]],
-			scores = self.scores[::-1],
 		)
 
 
@@ -128,7 +124,6 @@ class MoveSequence:
 		canonization = { "rotationEquivalent": rotationEquivalent, "colorSwapEquivalent": colorSwapEquivalent }
 		positions = []
 		moves = []
-		scores = []
 		currentRotation = np.arange(len(self.cube.faces))
 		currentColorSwap = self.cube.noColorSwap
 
@@ -137,7 +132,6 @@ class MoveSequence:
 		if keepStart:
 			raise NotImplementedError("Sequence canonization with initial position preserved")
 		positions.append(canonizedPosition)
-		scores.append(self.scores[0])
 		for cMove in canonizingMoves:
 			if cMove.type == MoveType.cubeRot:
 				currentRotation = currentRotation[self.cube.moveOrders[cMove]]
@@ -151,7 +145,6 @@ class MoveSequence:
 			moves.append(self.cube.rotateMove(move, currentRotation))
 			position = self.cube.applyColorSwap(currentColorSwap, self.cube.applyRotation(currentRotation, self.positions[i]))
 			positions.append(position)
-			scores.append(self.scores[i])
 			canonizedPosition, canonizingMoves = self.cube.canonizePosition(position, **canonization)
 			for cMove in canonizingMoves:
 				moves.append(cMove)
@@ -164,7 +157,6 @@ class MoveSequence:
 				else:
 					raise ValueError(f"Unknown canonizing move type: {cMove.type}")
 				positions.append(position)
-				scores.append(self.scores[i]) # score should not be affected by a non-solving move
 			assert (position == canonizedPosition).all(), "Canonizing moves do not produce the canonized position"
 
 		if keepEnd:
@@ -174,7 +166,6 @@ class MoveSequence:
 			cube = self.cube,
 			positions = np.asarray(positions),
 			moves = moves,
-			scores = scores,
 		)
 
 
@@ -190,7 +181,6 @@ class MoveSequence:
 
 		positions = [self.cube.getPosition()]
 		moves = []
-		scores = [self.scores[0]]
 
 		for i, move in enumerate(self.moves, start=1):
 			if (
@@ -202,8 +192,6 @@ class MoveSequence:
 				self.cube.move(move)
 				moves.append(move)
 				positions.append(self.cube.getPosition())
-
-				scores.append(self.scores[i])
 
 			elif move.type == MoveType.cubeRot:
 				currentInvRotation = self.cube.moveOrders[self.cube.invertMove(move)][currentInvRotation]
@@ -228,7 +216,6 @@ class MoveSequence:
 			cube = self.cube,
 			positions = np.asarray(positions),
 			moves = moves,
-			scores = scores,
 		)
 
 
@@ -259,7 +246,6 @@ class MoveSequence:
 			cube = self.cube,
 			positions = self.positions[mask, :],
 			moves = [m for m, f in zip(self.moves, mask[1:]) if f],
-			scores = [m for m, f in zip(self.scores, mask) if f],
 		)
 
 

@@ -63,20 +63,16 @@ class RubikSolver:
 		self.reset()
 
 		initPosition = self.cube.getPosition()
-		initScore = self.cube.getScore()
 		seq = MoveSequence(
 			cube = self.cube,
 			positions = np.empty((numMoves+1, len(initPosition)), dtype=initPosition.dtype),
 			moves = [],
-			scores = [],
 		)
 		seq.positions[0, :] = initPosition
-		seq.scores.append(initScore)
 		for i in range(1, numMoves+1):
 			move = self.makeMove()
 			seq.positions[i, :] = self.cube.getPosition()
 			seq.moves.append(move)
-			seq.scores.append(self.cube.getScore())
 		return seq
 
 
