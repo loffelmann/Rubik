@@ -201,6 +201,8 @@ class TorchMLPSolver(RubikSolver):
 		if device is not None:
 			self.device = device
 		self.model = _TorchWrapper(model).to(self.device)
+		self.model.train()
+		self._training = True
 
 	def getParam(self):
 		if self.model is None:
@@ -282,7 +284,9 @@ class TorchMLPSolver(RubikSolver):
 		"""
 		self.numSteps += 1
 
-		self.model.train()
+		if not self._training:
+			self.model.train()
+			self._training = True
 		features, targets = self.sequence2TrainData(seq)
 
 		prediction = self.model(features)
@@ -303,7 +307,9 @@ class TorchMLPSolver(RubikSolver):
 		if self.cube.isSolved(position=position):
 			return noMove
 
-		self.model.eval()
+		if self._training:
+			self.model.eval()
+			self._training = False
 		output = self.model(self.getFeatures()[None, :])
 
 		if self.predictMode == "maximum":
