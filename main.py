@@ -159,7 +159,7 @@ def train(
 	progressbar = Progressbar("train: ", samples=trainingSeqCount)
 	for seqInd in range(trainingSeqCount):
 		progressbar(samples=seqInd+1)
-		seq = trainingSeqGenerator(solver)
+		seq = trainingSeqGenerator()
 		solver.trainOnSequence(seq)
 
 
@@ -192,7 +192,7 @@ def dependencyOnTrainingData(
 		# training
 		trainingStart = time.time()
 		for seqInd in range(seqInd, nextSeqCnt):
-			seq = trainingSeqGenerator(solver)
+			seq = trainingSeqGenerator()
 			solver.trainOnSequence(seq)
 			if seqInd % 100 == 0: # do not eval fancy progressbar too often
 				progressbar(samples=seqInd+1)
@@ -326,25 +326,28 @@ solver.setScheduler(scheduler, 10000)
 
 
 print("\nsolver:", solver)
-print("scheduler params: ", schedulerParams)
+print("scheduler params:", schedulerParams)
 
 
 
 ## Train the solver ########################################
 
+
 class InverseScrambleGenerator:
 
-	def __init__(self, cube, numScrambleMoves=10):
-		self.solver = RandomSolver(cube)
+	def __init__(self, solver, numScrambleMoves=10):
+		self.randomSolver = RandomSolver(solver.cube)
 		self.numScrambleMoves = numScrambleMoves
 
-	def __call__(self, solver):
-		assert isinstance(solver.cube, self.solver.cube.__class__)
-		seq = self.solver.generateSequence(
+	def __call__(self):
+		seq = self.randomSolver.generateSequence(
 			numMoves = self.numScrambleMoves,
 			init = CubeTransform(CubeTransformMethod.reset, {}),
 		)
 		return seq.invert().canonize(**canonization).check()
+
+	def earlyStop(self):
+		return False
 
 	def __str__(self):
 		return f"{self.__class__.__name__}(numScrambleMoves={self.numScrambleMoves})"
@@ -373,7 +376,7 @@ metricValues = dependencyOnTrainingData(
 		"train sequences": trainingDataAmountMetric,
 		"training duration": trainingDurationMetric,
 	},
-	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7,
+	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7 or trainSeqGen.earlyStop(),
 )
 
 for name in ["memory size", "num weights", "learning rate", "train sequences", "training duration"]:
