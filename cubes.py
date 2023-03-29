@@ -9,6 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+from cy.color_eq import uniqueColors
+from cy.color_eq import applyColorSwap as cy_applyColorSwap
+
 
 
 # auxiliary for plotting
@@ -107,7 +110,7 @@ class Rubik_2x2x2:
 	# Color swaps are specified as tuples having a new color at the index of each old color;
 	# I know a real Rubik's cube does not support color swaps, but they are good for elliminating
 	# symmetries, making the virtual puzzle smaller.
-	noColorSwap = (0, 1, 2, 3, 4, 5)
+	noColorSwap = np.arange(6)
 
 
 	def __str__(self):
@@ -141,9 +144,7 @@ class Rubik_2x2x2:
 	def applyRotation(newOrder, position):
 		return position[newOrder]
 
-	@staticmethod
-	def applyColorSwap(swap, position):
-		return np.vectorize(swap.__getitem__)(position)
+	applyColorSwap = cy_applyColorSwap
 
 	@staticmethod
 	def invertRotation(rotation):
@@ -151,7 +152,7 @@ class Rubik_2x2x2:
 
 	@staticmethod
 	def invertColorSwap(swap):
-		return tuple(np.argsort(swap))
+		return np.argsort(swap)
 
 	@staticmethod
 	def invertMove(move):
@@ -242,7 +243,7 @@ class Rubik_2x2x2:
 		for colorOrder in itertools.permutations(self.faceValues):
 			swappedOrders = [tuple(swap[c] for c in colorOrder) for swap in sortedSwaps]
 			smallestInd = min(range(len(swappedOrders)), key=lambda i: swappedOrders[i])
-			self._colorOrder2RotationalSwap[colorOrder] = sortedSwaps[smallestInd]
+			self._colorOrder2RotationalSwap[colorOrder] = np.array(sortedSwaps[smallestInd])
 
 
 	def _invertMoveToPosition(self):
@@ -288,25 +289,14 @@ class Rubik_2x2x2:
 	## Canonization ################################################################################
 
 
-	@staticmethod
-	def _getColorOrder(position):
-		"""
-		Finds the order of first appearances of colors in a position
-		"""
-		# finding indices of sorted unique colors
-		_, uniqueInd = np.unique(position, return_index=True)
-		# reconstructing original order of the unique colors
-		uniqueInd.sort()
-		return tuple(position[uniqueInd])
-
 	def _getCanonicColorSwap(self, position, mode):
 		"""
 		Finds the color swap which lexicographically minimizes `position`
 		"""
-		colorOrder = self._getColorOrder(position)
+		colorOrder = uniqueColors(position, len(self.faceValues))
 		if mode == 1: # color swaps reachable by rotations of solved cube
 			# find the best swap ampong precalculated ones
-			return self._colorOrder2RotationalSwap[colorOrder]
+			return self._colorOrder2RotationalSwap[tuple(colorOrder)]
 		elif mode == 2: # general color swaps, including those unreachable by valid moves
 			# assign 0 to the color which occurs first, 1 to the second one, etc.
 			return self.invertColorSwap(colorOrder)
@@ -360,7 +350,7 @@ class Rubik_2x2x2:
 		position, canonizingRotation, canonizingColorSwap = self._canonizePosition(
 			position, **kwargs)
 		canonizingMoves = self.rotationToMoves[tuple(canonizingRotation)]
-		if canonizingColorSwap != self.noColorSwap:
+		if (canonizingColorSwap != self.noColorSwap).any():
 			canonizingMoves = canonizingMoves + (Move(MoveType.colorSwap, canonizingColorSwap),)
 		return position, canonizingMoves
 
