@@ -166,7 +166,7 @@ class TorchMLPSolver(RubikSolver):
 		device = "cpu",
 		loss = None,
 		predictMode = "probability",
-		colorEncoding = None,
+		colorEncoding = "one-hot",
 	):
 		super().__init__(cube, canonization)
 		self.predictMode = predictMode
@@ -180,14 +180,33 @@ class TorchMLPSolver(RubikSolver):
 		self.scheduler = None
 		self.epochLen = 1000
 
-		if colorEncoding is not None:
-			self.colorEncoding = { c: torch.tensor(e)
+		if isinstance(colorEncoding, dict):
+			self.colorEncoding = { c: e if c == "name" else torch.tensor(e)
 			                       for c, e in colorEncoding.items() }
-		else: # generate one-hot encoding
-			self.colorEncoding = {}
+
+		elif colorEncoding == "one-hot":
+			self.colorEncoding = { "name": "one-hot" }
 			for i, c in enumerate(self.cube.faceValues):
 				self.colorEncoding[c] = torch.zeros(len(self.cube.faceValues))
 				self.colorEncoding[c][i] = 1.0
+
+		elif colorEncoding == "ordinal":
+			self.colorEncoding = { "name": "ordinal" }
+			for i, c in enumerate(self.cube.faceValues):
+				self.colorEncoding[c] = torch.tensor([float(i)])
+
+		elif colorEncoding == "binary":
+			self.colorEncoding = { "name": "binary" }
+			bits = int(np.ceil(np.log2(len(self.cube.faceValues))))
+			for i, c in enumerate(self.cube.faceValues):
+				value = []
+				for b in range(bits):
+					value.append(i % 2.0)
+					i >>= 1
+				self.colorEncoding[c] = torch.tensor(value)
+
+		else:
+			raise ValueError(f"Unrecognized color encoding: {colorEncoding}")
 
 		self.numFeatures = len(self.getFeatures())
 		self.numMoves = len(self.moves)
@@ -220,6 +239,7 @@ class TorchMLPSolver(RubikSolver):
 
 	def __str__(self):
 		return f"""{self.__class__.__name__}(
+  colorEncoding={self.colorEncoding.get("name", "(custom)")}
   model={self.model.net}
   loss={self.loss}
   optimizer={self.optimizer}
