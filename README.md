@@ -132,8 +132,51 @@ reached, proceed to the full solution, and dispel doubts whether the preceeding 
 If the solver works well enough on the easier instances, the objective might be as simple as
 reaching the fully solved position, with no intermediate achievements to be rewarded.
 
-Remember, all of this section is just my fantasy now. I didn't get to testing it yet.
 
+
+# Results
+
+
+## Memorizing vs. Simple Neural Nets
+
+I tested MemorizeSolver and different sizes of TorchMLPSolver trained on inverse scrambling
+sequences of 10 moves. For the TorchMLPSolver, I settled on four layers with three Swishes
+between them, tested for different layer widths; Other multi-layer perceptron shapes seem to
+perform similarly.
+
+Plots below show the dependency of success rates (how often a model manages to solve a given cube
+position within a limited number of moves -- 100 in this case) on model size. Two different plots
+correspond to solving cubes scrambled by 10 and 100 moves.
+
+Model sizes are not really comparable between the two model types, since one stores an arbitrary
+representation of cube positions and moves (tuples of Python ints, one per square) while the other
+has an arbitrary representation of weights (32-bit floats). To plot MemorizeSolver curves,
+I recalculated this to a theoretically smallest representation of position-move pairs, which takes
+around 25 bits (to distinguish 3,674,160 positions × 6 moves; This is not implemented, but it
+could be). For TorchMLPSolver curves, I used the actual size of 32 bits per weight, and also a
+speculative compression to 8 bits per weight without losing performance (not sure if possible).
+
+A partially trained TorchMLPSolver seems to be a bit more efficient than a MemorizeSolver with
+similar performace; E.g., a real TorchMLPSolver with 50% success rate on cubes scrambled by 10
+moves takes about half the space of a theoretical MemorizeSolver with optimum rule representation.
+Apparently, the neural net already does some compression. However, the trend reverses for more
+thoroughly trained models. MemorizeSolver eventually approaches 100% success rate on all starting
+positions (around 1 million memorized rules, 3MB), while TorchMLPSolver nearly stops improving
+after 100k weights (400kB), and does not come close to 100% solved cubes even with a neural net
+hundred times larger (40MB, not in the plot). This would be worse than MemorizeSolver even if
+weights could be compressed to 8 bits.
+
+I didn't get any further improvement with hyperparameter tuning (tried different numbers of
+layers, different activations, optimizer params).
+
+![Dependency of model performance on model size, cube scrambled by 10 moves](misc/meas1_plot1_scramble10.png)
+
+![Dependency of model performance on model size, cube scrambled by 100 moves](misc/meas1_plot1_scramble100.png)
+
+
+## Bootstrapped Training Data Generation
+
+Coming soon
 
 
 # License
