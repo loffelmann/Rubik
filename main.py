@@ -353,7 +353,48 @@ class InverseScrambleGenerator:
 		return f"{self.__class__.__name__}(numScrambleMoves={self.numScrambleMoves})"
 
 
-trainSeqGen = InverseScrambleGenerator(cube)
+class BootstrapGenerator:
+
+	def __init__(self, solver, maxScMoves=50, testMoves=100):
+		self.solver = solver
+		self.maxScMoves = maxScMoves
+		self.testMoves = testMoves
+		self.numGenerated = 0
+		self.meanScMoves = 1
+		self.updateSpeed = 0.01
+		self.targetSR = 0.15
+
+	def __call__(self):
+		for attempt in range(300):
+#			scMoves = np.random.poisson(lam = self.meanScMoves) + 1
+			scMoves = int(min(self.meanScMoves, self.maxScMoves))
+			seq = self.solver.generateSequence(
+				numMoves = self.testMoves,
+				init = [
+					CubeTransform(CubeTransformMethod.reset, {}),
+					CubeTransform(CubeTransformMethod.scramble, {"moves": scMoves}),
+				],
+			)
+
+			if seq.isSolved():
+				self.meanScMoves += self.updateSpeed
+				statSpeed = 0.001
+				self.numGenerated += 1
+				return seq.simplify()
+			else:
+				self.meanScMoves = max(self.meanScMoves-self.updateSpeed*self.targetSR, 1)
+
+		raise RuntimeError("Could not generate a successfull sequence")
+
+	def earlyStop(self):
+		return self.meanScMoves > self.maxScMoves*10
+
+	def __str__(self):
+		return f"{self.__class__.__name__}(maxScMoves={self.maxScMoves}, testMoves={self.testMoves})"
+
+
+trainSeqGen = InverseScrambleGenerator(solver)
+
 seqCounts = [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000,
              1200000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000]
 
@@ -378,6 +419,8 @@ metricValues = dependencyOnTrainingData(
 	},
 	earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7 or trainSeqGen.earlyStop(),
 )
+
+
 
 for name in ["memory size", "num weights", "learning rate", "train sequences", "training duration"]:
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
