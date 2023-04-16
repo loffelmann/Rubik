@@ -167,7 +167,7 @@ hundred times larger (40MB, not in the plot). This would be worse than MemorizeS
 weights could be compressed to 8 bits.
 
 I didn't get any further improvement with hyperparameter tuning (tried different numbers of
-layers, different activations, optimizer params).
+layers, different activations, optimizer params, length of training sequences).
 
 ![Dependency of model performance on model size, cube scrambled by 10 moves](misc/meas1_plot1_scramble10.png)
 
