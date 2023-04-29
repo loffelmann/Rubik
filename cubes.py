@@ -601,10 +601,10 @@ class Rubik_2x2x2:
 		  q       quit
 		  r       reset cube to solved state
 		  s       scramble
-		  abcdef  rotate a face by 90deg (each letter controls a different face)
-		  ABCDEF  rotate a face by -90deg
-		  ghi     rotate the cube by 90deg (each letter controls a different axis)
-		  GHI     rotate the cube by -90deg
+		  LRFBDU  rotate a face by 90deg (each letter controls a different face)
+		  L'R'F'  rotate a face by -90deg
+		  XYZ     rotate the cube by 90deg (each letter controls a different axis)
+		  X'Y'Z'  rotate the cube by -90deg
 
 		Need to press enter after commands. Multiple commands can be entered at once.
 		"""
