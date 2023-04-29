@@ -64,7 +64,7 @@ Therefore, I picked a 2×2×2 cube, which only has 3,674,160 positions reachable
 (source: I counted them on my home computer), and after first 14 moves, there is nowhere else
 to wander away to.
 
-![2x2x2 Rubik's cube, scrambled](misc/cube.png)
+![2x2x2 Rubik's cube, scrambled](images/cube.png)
 
 
 ## Canonization
@@ -169,14 +169,39 @@ weights could be compressed to 8 bits.
 I didn't get any further improvement with hyperparameter tuning (tried different numbers of
 layers, different activations, optimizer params, length of training sequences).
 
-![Dependency of model performance on model size, cube scrambled by 10 moves](misc/meas1_plot1_scramble10.png)
+![Dependency of model performance on model size, cube scrambled by 10 moves](images/meas1_plot1_scramble10.png)
 
-![Dependency of model performance on model size, cube scrambled by 100 moves](misc/meas1_plot1_scramble100.png)
+![Dependency of model performance on model size, cube scrambled by 100 moves](images/meas1_plot1_scramble100.png)
 
 
 ## Bootstrapped Training Data Generation
 
-Coming soon
+The same architecture of neural network performs very differently when trained on data generated
+by itself, rather than the inverted scrambling sequences. Much smaller networks are able to solve
+the cube in most cases. There was one NN with 906 weights, 3.6kB, which could solve about 95% of
+thoroughly scrambled cubes. Compare to the previous experiment, where no size of NN could solve
+95% of cubes, while to solve 40% of cubes, about 100kB of neural network was needed.
+Paradoxically, large networks perform much worse with bootstrapped training data; No idea why.
+
+Another clue to a different approach taken by the bootstrapped NNs is the number of moves needed to
+solve a cube, which is much higher than in the previous experiment. Solving a cube scrambled by
+10 moves typically takes about 10 moves to a NN trained on inverse scrambling sequences (if it can
+do it at all), while a bootstrapped NN may do 50 or more moves (could be related to the fact that
+training sequences were 100 moves long).
+
+The NNs are still just multi-layered perceptrons, nothing smart like recurrence or attention was
+used; Only the data generation method is different. My original goal seems to be less of a
+challenge than I hoped (which doesn't mean I am done with experiments).
+
+Figure: Success rates of different-sized models, showing the weirdness of bootstrapped NNs
+![Dependency of model performance on model size, including bootstrapped NNs](images/meas1_meas2_plot2_scramble10.png)
+
+Figure: Median number of moves needed to solve a cube scrambled by 10 moves
+![Dependency of the number of solving moves on model success rate for three types of models](images/meas1_meas2_plot3_scramble10.png)
+
+
+TODO: Do the bootstrapped NNs work in some human-recognizable way? Is their way of failing recognizable?
+
 
 
 # License
