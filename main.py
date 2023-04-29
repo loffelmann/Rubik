@@ -43,7 +43,7 @@ class SuccessRateMetric:
 		self.seqLength = seqLength
 		self.measureFails = measureFails
 		self.measureMoves = measureMoves
-		self.threads = threads
+		self.threads = 1 # threads
 		self.seed = seed
 
 	def __call__(self, solver, **kwargs):
@@ -264,20 +264,31 @@ print("\ncube:", cube)
 ## Define a solver #########################################
 
 
-#solver = MemorizeSolver(cube, canonization)
+#solver = MemorizeSolver(cube, canonization, random=True)
 
 
 solver = TorchMLPSolver(cube, canonization)
 
-solver.setModel(nn.Sequential(
-	nn.Linear(solver.numFeatures, 50),
-	nn.SiLU(),
-	nn.Linear(50, 50),
-	nn.SiLU(),
-	nn.Linear(50, 50),
-	nn.SiLU(),
-	nn.Linear(50, solver.numMoves),
-))
+width = 50
+depth = 3
+colorEnc = "one-hot"
+activation = nn.ReLU
+
+solver = TorchMLPSolver(cube, canonization,
+#	loss = ClippedLoss(torch.nn.CrossEntropyLoss(reduction="none"), 0.7, 5),
+	colorEncoding = colorEnc,
+)
+
+net = nn.Sequential(
+	nn.Linear(solver.numFeatures, width),
+	activation(),
+)
+for _ in range(1, depth):
+	net.append(nn.Linear(width, width))
+	net.append(activation())
+net.append(nn.Linear(width, solver.numMoves))
+
+solver.setModel(net)
 
 optimizer = torch.optim.Adam(solver.getParam(), lr=1e-3)
 solver.setOptimizer(optimizer)
@@ -394,11 +405,14 @@ class BootstrapGenerator:
 
 
 trainSeqGen = InverseScrambleGenerator(solver)
+#trainSeqGen = BootstrapGenerator(solver)
 
-seqCounts = [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000,
+seqCounts = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000,
              1200000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000]
 
 print("\ndata generator:", trainSeqGen, "\n")
+
+
 
 metricValues = dependencyOnTrainingData(
 	solver,
@@ -411,6 +425,8 @@ metricValues = dependencyOnTrainingData(
 			SuccessRateMetric(10, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		("success rate 20", "moves needed 20"):
 			SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+		("success rate 100", "moves needed 100"):
+			SuccessRateMetric(100, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 		"learning rate": learningRateMetric,
 		"memory size": memorySizeMetric,
 		"num weights": numWeightsMetric,
@@ -426,7 +442,7 @@ for name in ["memory size", "num weights", "learning rate", "train sequences", "
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
 
 plt.subplot(211)
-for name in ["success rate 5", "success rate 10", "success rate 20"]:
+for name in ["success rate 5", "success rate 10", "success rate 20", "success rate 100"]:
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
 	plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
 plt.ylim(0, 1)
@@ -434,13 +450,14 @@ plt.grid()
 plt.legend()
 
 plt.subplot(212)
-for name in ["moves needed 5", "moves needed 10", "moves needed 20"]:
+for name in ["moves needed 5", "moves needed 10", "moves needed 20", "moves needed 100"]:
 	print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
 	plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
 plt.grid()
 plt.legend()
 
 plt.show()
+
 
 def finalMeas():
 	for scMoves in list(range(2, 31, 2))+[50, 100]:
