@@ -194,7 +194,7 @@ used; Only the data generation method is different. My original goal seems to be
 challenge than I hoped (which doesn't mean I am done with experiments).
 
 Figure: Success rates of different-sized models, showing the weirdness of bootstrapped NNs
-![Dependency of model performance on model size, including bootstrapped NNs](images/meas1_meas2_plot2_scramble10.png)
+![Dependency of model performance on model size, including bootstrapped NNs](images/meas1_meas2_plot2_scramble100.png)
 
 Figure: Median number of moves needed to solve a cube scrambled by 10 moves
 ![Dependency of the number of solving moves on model success rate for three types of models](images/meas1_meas2_plot3_scramble10.png)
