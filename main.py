@@ -1,6 +1,7 @@
 
 from collections.abc import Sequence
 import multiprocessing
+from datetime import datetime
 import pickle
 import traceback
 
@@ -45,7 +46,7 @@ class SuccessRateMetric:
 		self.seqLength = seqLength
 		self.measureFails = measureFails
 		self.measureMoves = measureMoves
-		self.threads = 1 # threads
+		self.threads = threads
 		self.seed = seed
 
 	def __call__(self, solver, **kwargs):
@@ -303,8 +304,6 @@ else:
 
 #	solver = MemorizeSolver(cube, canonization, random=True)
 
-
-	solver = TorchMLPSolver(cube, canonization)
 
 	width = 50
 	depth = 3
