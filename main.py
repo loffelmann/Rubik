@@ -495,7 +495,7 @@ else:
 	print(f"\nduration: {round((time.time()-startTime)/60)} min")
 
 	saveNote = ""
-	savePath = saveNote + datetime.now().strftime("%Y-%M-%d_%H.%m.%S") + ".pickle"
+	savePath = saveNote + datetime.now().strftime("%Y-%m-%d_%H.%M.%S") + ".pickle"
 	breakpoint()
 	try:
 		with open(savePath, "wb") as f:
