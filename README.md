@@ -24,22 +24,23 @@ of *my own* understanding.
 
 # Repository Contents
 
-cubes.py contains Python models (1 model so far and counting) of Rubik's cubes and related puzzles.
+*cubes.py* contains Python models (1 model so far and counting) of Rubik's cubes and related puzzles.
 Each model defines valid moves, recognizes whether the cube is solved, and so on. I.e., it
 implements the problem and some simple analysis methods, but not the solution. Cube visualization
 is there, too.
 
-MoveSequence from sequences.py is a wrapper for a sequence of moves on a specific cube. It is used
+MoveSequence from *sequences.py* is a wrapper for a sequence of moves on a specific cube. It is used
 to pass training and other data around.
 
-solvers.py define a few methods to generate moves on a cube. RandomSolver, despite its name, is
+*solvers.py* define a few methods to generate moves on a cube. RandomSolver, despite its name, is
 meant to generate some kind of data rather than actually solve anything. MemorizeSolver remembers
 the move it has seen after a specific cube position (using a dict, no neural net involved), and
 regurgitates the move when it encounters the position again; It is meant to be a dumb reference
 so that my first (also dumb) AI algorithms have something to compare to. The remaining solvers
 (i.e., TorchMLPSolver) are the actual AI.
 
-main.py is for high-level experiments and examples how to use stuff.
+*main.py* is for high-level experiments and examples how to use stuff. By default, it should run
+a demo with a pre-trained solver stored in *trained\_solvers/*.
 
 Tested with Python 3.9.15, PyTorch 1.13.1
 
@@ -201,6 +202,13 @@ challenge than I hoped (which doesn't mean I am done with experiments).
 
 
 **TODO**: Do the bootstrapped NNs work in some human-recognizable way? Is their way of failing recognizable?
+
+
+## Next Steps
+
+I see two ways how to continue: Switch to a larger cube which may pose a challenge again;
+Or keep tuning the solvers on the 2x2x2 cube, and hope the results will generalize.
+Experiments will show which is better, but they will take time.
 
 
 
