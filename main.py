@@ -19,6 +19,11 @@ from resources import *
 
 
 
+metricThreads = 6
+seqLength = 100
+
+
+
 import time
 startTime = time.time()
 
@@ -35,7 +40,7 @@ class SuccessRateMetric:
 	def __init__(self,
 		scramblingMoves,
 		samples = 100,
-		seqLength = 100,
+		seqLength = seqLength,
 		measureFails = False,
 		measureMoves = True,
 		threads = 1,
@@ -357,8 +362,8 @@ else:
 
 	width = 50
 	depth = 3
-	colorEnc = "one-hot"
-	activation = nn.ReLU
+	colorEnc = "binary"
+	activation = nn.SiLU
 
 	biasAmplitude = 0.05
 	biasLength = 10
@@ -413,7 +418,7 @@ else:
 			samples = 500,
 			measureFails = True,
 			measureMoves = False,
-			threads = 6,
+			threads = metricThreads,
 			seed = np.random.randint(0x7FFFFFFFFFFFFFFF),
 		),
 		{ "solver": solver },
@@ -453,19 +458,20 @@ else:
 
 	class BootstrapGenerator:
 
-		def __init__(self, solver, maxScMoves=50, testMoves=100):
+		def __init__(self, solver, *, maxScMoves=50, testMoves=seqLength, targetSR=0.15):
 			self.solver = solver
 			self.maxScMoves = maxScMoves
 			self.testMoves = testMoves
 			self.numGenerated = 0
 			self.meanScMoves = 1
-			self.updateSpeed = 0.01
-			self.targetSR = 0.15
+			self.updateSpeed = 0.02
+			self.targetSR = targetSR
 			self.earlyStopOffset = 200000
 			self.numCallsAfterMaxMoves = 0
 
 		def __call__(self):
-			for attempt in range(300):
+
+			for attempt in range(1000):
 #				scMoves = np.random.poisson(lam = self.meanScMoves) + 1
 				scMoves = int(min(self.meanScMoves, self.maxScMoves))
 				seq = self.solver.generateSequence(
@@ -498,14 +504,14 @@ else:
 #			return self.meanScMoves > self.maxScMoves*10
 
 		def __str__(self):
-			return f"{self.__class__.__name__}(maxScMoves={self.maxScMoves}, testMoves={self.testMoves})"
+			return f"{self.__class__.__name__}(maxScMoves={self.maxScMoves}, testMoves={self.testMoves}, targetSR={self.targetSR})"
 
 
-	trainSeqGen = InverseScrambleGenerator(solver)
-#	trainSeqGen = BootstrapGenerator(solver)
+#	trainSeqGen = InverseScrambleGenerator(solver)
+	trainSeqGen = BootstrapGenerator(solver, targetSR=0.05)
 
-	seqCounts = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000,
-	             1200000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000]
+	seqCounts = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 750000, 1000000,
+	             1250000, 1500000, 1750000, 2000000, 2500000, 3000000, 4000000, 5000000]
 
 	print("\ndata generator:", trainSeqGen, "\n")
 
@@ -553,13 +559,13 @@ else:
 		trainSeqGen,
 		{
 			("success rate 5", "moves needed 5"):
-				SuccessRateMetric( 5, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+				SuccessRateMetric( 5, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 			("success rate 10", "moves needed 10"):
-				SuccessRateMetric(10, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+				SuccessRateMetric(10, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 			("success rate 20", "moves needed 20"):
-				SuccessRateMetric(20, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+				SuccessRateMetric(20, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 			("success rate 100", "moves needed 100"):
-				SuccessRateMetric(100, 500, threads=6, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+				SuccessRateMetric(100, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
 			"learning rate": learningRateMetric,
 			"memory size": memorySizeMetric,
 			"num weights": numWeightsMetric,
@@ -594,7 +600,7 @@ else:
 
 	def finalMeas():
 		for scMoves in list(range(2, 31, 2))+[50, 100]:
-			metric = SuccessRateMetric(scMoves, 5000, threads=6)
+			metric = SuccessRateMetric(scMoves, 5000, threads=metricThreads)
 			solved, moves = metric(solver)
 			print(f"  success rate {scMoves} = {solved:.3f}, median moves {moves}")
 

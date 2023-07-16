@@ -278,14 +278,6 @@ class TorchMLPSolver(RubikSolver):
 		return features.to(self.device), targets.to(self.device)
 
 
-#	def raiseLearningRate(self):
-#		for group in self.optimizer.param_groups:
-#			group["lr"] = min(group["lr"]*(1+self.lrSpeed), 1e-2)
-#
-#	def lowerLearningRate(self):
-#		for group in self.optimizer.param_groups:
-#			group["lr"] = max(group["lr"]/(1+self.lrSpeed), 1e-7)
-
 	def getLearningRate(self):
 		minLR = np.inf
 		maxLR = -np.inf

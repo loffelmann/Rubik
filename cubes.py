@@ -815,7 +815,7 @@ class Rubik_2x2x2:
 	"""
 
 	def __init__(self, *, fixCorner=False):
-		self._fixCorner = fixCorner
+		self.fixCorner = fixCorner
 
 		self._rememberedPositions = []
 
@@ -881,7 +881,7 @@ class Rubik_2x2x2:
 
 
 	def __str__(self):
-		return f"{self.__class__.__name__}(fixCorner={self._fixCorner})"
+		return f"{self.__class__.__name__}(fixCorner={self.fixCorner})"
 
 
 	## Accessing cube state ########################################################################
