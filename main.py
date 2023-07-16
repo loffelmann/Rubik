@@ -476,10 +476,14 @@ else:
 				)
 
 				if seq.isSolved():
+					seq = seq.simplify()
+					if not seq.moves:
+						continue # a trivial sequence
+
 					self.meanScMoves += self.updateSpeed
 					statSpeed = 0.001
 					self.numGenerated += 1
-					return seq.simplify()
+					return seq
 				else:
 					self.meanScMoves = max(self.meanScMoves-self.updateSpeed*self.targetSR, 1)
 
