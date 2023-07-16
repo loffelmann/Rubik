@@ -360,6 +360,9 @@ else:
 	colorEnc = "one-hot"
 	activation = nn.ReLU
 
+	biasAmplitude = 0.05
+	biasLength = 10
+
 	solver = TorchMLPSolver(cube, canonization,
 #		loss = ClippedLoss(torch.nn.CrossEntropyLoss(reduction="none"), 0.7, 5),
 		colorEncoding = colorEnc,
@@ -467,6 +470,7 @@ else:
 						CubeTransform(CubeTransformMethod.reset, {}),
 						CubeTransform(CubeTransformMethod.scramble, {"moves": scMoves}),
 					],
+					uniformBias = lambda moveInd, **_: max((1-moveInd/biasLength)*biasAmplitude, 0),
 				)
 
 				if seq.isSolved():

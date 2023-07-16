@@ -31,7 +31,7 @@ class RubikSolver:
 		self._justCanonized = False
 
 
-	def makeMove(self):
+	def makeMove(self, **kwargs):
 		"""
 		Advances the linked cube by one move
 		(depending on situation either canonization or solving)
@@ -42,7 +42,7 @@ class RubikSolver:
 			self._justCanonized = True
 		if not self._moveBuffer:
 #			assert self.cube.isCanonicPosition(position, **self.canonization) # debug
-			moves = self._generateMoves()
+			moves = self._generateMoves(**kwargs)
 			if isinstance(moves, Move):
 				self._moveBuffer.append(moves)
 			else:
@@ -53,7 +53,7 @@ class RubikSolver:
 		return move
 
 
-	def generateSequence(self, *, numMoves=100, init=[], seed=None):
+	def generateSequence(self, *, numMoves=100, init=[], seed=None, **kwargs):
 		"""
 		Generates the specified number of moves and makes a `MoveSequence` out of them
 		"""
@@ -70,7 +70,7 @@ class RubikSolver:
 		)
 		seq.positions[0, :] = initPosition
 		for i in range(1, numMoves+1):
-			move = self.makeMove()
+			move = self.makeMove(**kwargs)
 			seq.positions[i, :] = self.cube.getPosition()
 			seq.moves.append(move)
 		return seq
@@ -78,7 +78,7 @@ class RubikSolver:
 
 	# "abstract" methods
 
-	def _generateMoves(self, position=None):
+	def _generateMoves(self, **kwargs):
 		"""
 		Runs whatever solving algorithm the specific solver implements,
 		returns one or more `Move`s to be performed.
@@ -96,7 +96,7 @@ class RandomSolver(RubikSolver):
 	Selects a random solving move at each step
 	"""
 
-	def _generateMoves(self, position=None):
+	def _generateMoves(self, **kwargs):
 		moveInd = self.rng.integers(len(self.moves))
 		return self.moves[moveInd]
 
@@ -124,7 +124,7 @@ class MemorizeSolver(RubikSolver):
 			if move in self.moves:
 				self.memory[tuple(pos)] = move
 
-	def _generateMoves(self, position=None):
+	def _generateMoves(self, position=None, **kwargs):
 		if position is None:
 			position = self.cube.position
 		if self.cube.isSolved(position=position):
@@ -333,7 +333,10 @@ class TorchMLPSolver(RubikSolver):
 			self.scheduler.step()
 
 
-	def _generateMoves(self, position=None):
+	def _generateMoves(self, position=None, uniformBias=None, **kwargs):
+		moveInd = self._generateMoveInd
+		self._generateMoveInd += 1
+
 		if position is None:
 			position = self.cube.position
 
@@ -348,13 +351,23 @@ class TorchMLPSolver(RubikSolver):
 		if self.predictMode == "maximum":
 			index = torch.argmax(output).item()
 			return self.moves[index]
+
 		elif self.predictMode == "probability":
 			probability = softmax(output[0].detach().numpy() / self.temperature)
+			if uniformBias is not None:
+				if callable(uniformBias):
+					amplitude = uniformBias(solver=self, moveInd=moveInd)
+				else:
+					amplitude = uniformBias
+				uniform = np.ones(len(probability)) / len(probability)
+				probability = uniform*amplitude + probability*(1-amplitude)
+				probability /= probability.sum() # the above seems not accurate enough for rng.choice internal check
 			try:
 				index = self.rng.choice(np.arange(len(self.moves)), p=probability)
 			except:
 				breakpoint()
 			return self.moves[index]
+
 		else:
 			raise ValueError(self.predictMode)
 
