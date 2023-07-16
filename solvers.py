@@ -168,7 +168,6 @@ class TorchMLPSolver(RubikSolver):
 		predictMode = "probability",
 		colorEncoding = "one-hot",
 	):
-		super().__init__(cube, canonization)
 		self.predictMode = predictMode
 
 		self.loss = loss if loss is not None else torch.nn.CrossEntropyLoss()
@@ -186,19 +185,19 @@ class TorchMLPSolver(RubikSolver):
 
 		elif colorEncoding == "one-hot":
 			self.colorEncoding = { "name": "one-hot" }
-			for i, c in enumerate(self.cube.faceValues):
-				self.colorEncoding[c] = torch.zeros(len(self.cube.faceValues))
+			for i, c in enumerate(cube.faceValues):
+				self.colorEncoding[c] = torch.zeros(len(cube.faceValues))
 				self.colorEncoding[c][i] = 1.0
 
 		elif colorEncoding == "ordinal":
 			self.colorEncoding = { "name": "ordinal" }
-			for i, c in enumerate(self.cube.faceValues):
+			for i, c in enumerate(cube.faceValues):
 				self.colorEncoding[c] = torch.tensor([float(i)])
 
 		elif colorEncoding == "binary":
 			self.colorEncoding = { "name": "binary" }
-			bits = int(np.ceil(np.log2(len(self.cube.faceValues))))
-			for i, c in enumerate(self.cube.faceValues):
+			bits = int(np.ceil(np.log2(len(cube.faceValues))))
+			for i, c in enumerate(cube.faceValues):
 				value = []
 				for b in range(bits):
 					value.append(i % 2.0)
@@ -207,6 +206,8 @@ class TorchMLPSolver(RubikSolver):
 
 		else:
 			raise ValueError(f"Unrecognized color encoding: {colorEncoding}")
+
+		super().__init__(cube, canonization)
 
 		self.numFeatures = len(self.getFeatures())
 		self.numMoves = len(self.moves)
