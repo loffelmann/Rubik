@@ -298,6 +298,18 @@ class TorchMLPSolver(RubikSolver):
 		return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
 
+	@staticmethod
+	def _startSequence(model):
+		if hasattr(model, "startSequence"):
+			model.startSequence()
+
+	def reset(self):
+		super().reset()
+		self._generateMoveInd = 0
+		if self.model and hasattr(self.model, "apply"):
+			self.model.apply(self._startSequence)
+
+
 	def trainOnSequence(self, seq):
 		"""
 		Converts `seq` to (position, next move) pairs, runs one iteration of optimizer on it
@@ -309,6 +321,7 @@ class TorchMLPSolver(RubikSolver):
 			self._training = True
 		features, targets = self.sequence2TrainData(seq)
 
+		self.reset()
 		prediction = self.model(features)
 		loss = self.loss(prediction, targets)
 

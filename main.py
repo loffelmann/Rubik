@@ -246,6 +246,50 @@ class MyReduceLROnPlateau(torch.optim.lr_scheduler.ReduceLROnPlateau):
 
 
 
+class RNNWithInit(nn.Module):
+
+	def __init__(self, input_size, hidden_size, num_layers=1, **kwargs):
+		super().__init__()
+		self.net = nn.RNN(input_size, hidden_size, num_layers, **kwargs)
+		self.initState = torch.randn((num_layers, hidden_size), requires_grad=True)
+		self.startSequence()
+
+	def startSequence(self):
+		self.currentState = self.initState
+
+	def forward(self, x):
+		y, self.currentState = self.net.forward(x, self.currentState)
+		return y
+
+	def __getstate__(self):
+		d = self.__dict__.copy()
+		d["currentState"] = d["initState"]
+		return d
+
+
+
+class LSTMWithInit(nn.Module):
+
+	def __init__(self, input_size, hidden_size, num_layers=1, **kwargs):
+		super().__init__()
+		self.net = nn.LSTM(input_size, hidden_size, num_layers, **kwargs)
+		self.initState = (
+			torch.randn((num_layers, hidden_size), requires_grad=True),
+			torch.randn((num_layers, hidden_size), requires_grad=True),
+		)
+		self.startSequence()
+
+	def startSequence(self):
+		self.currentState = self.initState
+
+	def forward(self, x):
+		y, self.currentState = self.net.forward(x, self.currentState)
+		return y
+
+	def __getstate__(self):
+		d = self.__dict__.copy()
+		d["currentState"] = d["initState"]
+		return d
 
 
 # Train a new solver
@@ -324,7 +368,15 @@ else:
 		net.append(activation())
 	net.append(nn.Linear(width, solver.numMoves))
 
-	solver.setModel(net)
+#	net = nn.Sequential(
+#		nn.Linear(solver.numFeatures, width),
+#		activation(),
+#		RNNWithInit(width, width, nonlinearity="relu"),
+##		LSTMWithInit(width, width),
+#		nn.Linear(width, width),
+#		activation(),
+#		nn.Linear(width, solver.numMoves),
+#	)
 
 	optimizer = torch.optim.Adam(solver.getParam(), lr=1e-3)
 	solver.setOptimizer(optimizer)
@@ -435,6 +487,42 @@ else:
 	             1200000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000]
 
 	print("\ndata generator:", trainSeqGen, "\n")
+
+
+
+#	# testing if recurrent neural nets are actually recurrent; see if they can
+#	# reproduce a sequence whose items are determined only by their index in the sequence
+#	trainSeq = InverseScrambleGenerator(solver)()
+#	trainSeq.positions = np.tile(trainSeq.positions[:1, :], (11, 1))
+#	trainMoves = trainSeq.moves
+#	def hitRate(solver, **kwargs):
+#		attempts = 10
+#		hits = 0
+#		for _ in range(attempts):
+#			solver.cube.position = trainSeq.positions[0, :].copy()
+#			seq = solver.generateSequence(
+#				numMoves = len(trainMoves),
+#				init = [],
+#			)
+#			for m1, m2 in zip(trainMoves, seq.moves):
+#				if m1 == m2:
+#					hits += 1
+#		return hits / len(trainMoves) / attempts
+#	def trainSeqGen():
+#		trainSeq = InverseScrambleGenerator(solver)()
+#		trainSeq.positions = np.tile(trainSeq.positions[:1, :], (11, 1))
+#		trainSeq.moves = trainMoves
+#		return trainSeq
+#	metricValues = dependencyOnTrainingData(
+#		solver,
+#		range(0, 2001, 100),
+#		trainSeqGen,
+#		{
+#			"hit rate": hitRate,
+#		},
+#	)
+#	print(metricValues["hit rate"])
+#	exit()
 
 
 
