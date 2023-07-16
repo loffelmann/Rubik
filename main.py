@@ -298,6 +298,12 @@ class LSTMWithInit(nn.Module):
 # Load a saved solver
 loadSolver = "./trained_solvers/bootstrap200_906weights.pickle"
 
+def noCorners(cube, center, **_):
+	return ((center > 1) & (center//2+1 < cube.size)).any()
+
+def noEdges(cube, center, **_):
+	return ((center > 1) & (center//2+1 < cube.size)).sum() != 1
+
 if loadSolver:
 
 	## Load solver #################################################################################
