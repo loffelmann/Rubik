@@ -387,6 +387,8 @@ else:
 #		nn.Linear(width, solver.numMoves),
 #	)
 
+	solver.setModel(net.cpu())
+
 	optimizer = torch.optim.Adam(solver.getParam(), lr=1e-3)
 	solver.setOptimizer(optimizer)
 

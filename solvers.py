@@ -219,7 +219,8 @@ class TorchMLPSolver(RubikSolver):
 	def setModel(self, model, device=None):
 		if device is not None:
 			self.device = device
-		self.model = _TorchWrapper(model).to(self.device)
+#		self.model = _TorchWrapper(model).to(self.device)
+		self.model = model
 		self.model.train()
 		self._training = True
 
@@ -240,7 +241,7 @@ class TorchMLPSolver(RubikSolver):
 	def __str__(self):
 		return f"""{self.__class__.__name__}(
   colorEncoding={self.colorEncoding.get("name", "(custom)")}
-  model={self.model.net}
+  model={self.model}
   loss={self.loss}
   optimizer={self.optimizer}
   scheduler={self.scheduler}
