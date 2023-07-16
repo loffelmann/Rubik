@@ -461,6 +461,8 @@ else:
 			self.meanScMoves = 1
 			self.updateSpeed = 0.01
 			self.targetSR = 0.15
+			self.earlyStopOffset = 200000
+			self.numCallsAfterMaxMoves = 0
 
 		def __call__(self):
 			for attempt in range(300):
@@ -481,6 +483,8 @@ else:
 						continue # a trivial sequence
 
 					self.meanScMoves += self.updateSpeed
+					if self.meanScMoves > self.maxScMoves:
+						self.numCallsAfterMaxMoves += 1
 					statSpeed = 0.001
 					self.numGenerated += 1
 					return seq
@@ -490,7 +494,8 @@ else:
 			raise RuntimeError("Could not generate a successfull sequence")
 
 		def earlyStop(self):
-			return self.meanScMoves > self.maxScMoves*10
+			return self.numCallsAfterMaxMoves >= self.earlyStopOffset
+#			return self.meanScMoves > self.maxScMoves*10
 
 		def __str__(self):
 			return f"{self.__class__.__name__}(maxScMoves={self.maxScMoves}, testMoves={self.testMoves})"
