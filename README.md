@@ -182,7 +182,9 @@ by itself, rather than the inverted scrambling sequences. Much smaller networks 
 the cube in most cases. There was one NN with 906 weights, 3.6kB, which could solve about 95% of
 thoroughly scrambled cubes. Compare to the previous experiment, where no size of NN could solve
 95% of cubes, while to solve 40% of cubes, about 100kB of neural network was needed.
-Paradoxically, large networks perform much worse with bootstrapped training data; No idea why.
+
+Paradoxically, large networks perform much worse with bootstrapped training data. This seems to be
+somehow related to the "exploration versus exploitation" problem (see below).
 
 Another clue to a different approach taken by the bootstrapped NNs is the number of moves needed to
 solve a cube, which is much higher than in the previous experiment. Solving a cube scrambled by
@@ -204,12 +206,32 @@ challenge than I hoped (which doesn't mean I am done with experiments).
 **TODO**: Do the bootstrapped NNs work in some human-recognizable way? Is their way of failing recognizable?
 
 
-## Next Steps
+## Exploration vs Exploitation
 
-I see two ways how to continue: Switch to a larger cube which may pose a challenge again;
-Or keep tuning the solvers on the 2x2x2 cube, and hope the results will generalize.
-Experiments will show which is better, but they will take time.
+The bootstrapping generator as described so far seems to have a problem with this. It can only
+generate a training sample which already can be solved by the NN under training (with a bit of
+luck -- I keep the success rate around 5% by adjusting initial scrambled-ness). I imagine that
+sometimes the NN learns to solve a subset of initial positions and then keeps generating these
+as its own training samples, thereby losing motivation to learn the others (but I have done no
+experiments to test this specific theory).
 
+Fortunately, the standard remedy -- forcing the solver to do completely random moves every now
+and then -- does help. The most improvement occurs in large NNs, which originally performed
+much worse than smaller ones. There used to be a sweet spot for NN size where 90-95% success
+rates on thoroughly scrambled cubes were achieved; Now, these can do 98% or more, and larger
+NNs perform similarly.
+
+It would be nice to know why the larger NNs are more prone to degeneration than the smaller
+ones, but right now I don't know how to find out.
+
+**Figure**: Success rates of different sizes of bootstrapped models, with and without forced exploration
+![Bootstrapped model performance with and without forced exploration](images/meas2_plot4_scramble100.png)
+
+
+
+## Larger Cube
+
+TODO
 
 
 # License
