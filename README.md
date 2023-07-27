@@ -61,7 +61,7 @@ artificial (nothing prevents an imperfect solver from wandering away from the na
 solution space) and encouraging memorizing solvers (performing a multi-move algorithm
 to do a minor improvement to the cube is exactly what takes the solver far away from known space).
 
-Therefore, I picked a 2×2×2 cube, which only has 3,674,160 positions reachable by valid moves
+Therefore, I picked a 2×2×2 cube which only has 3,674,160 positions reachable by valid moves
 (source: I counted them on my home computer), and after first 14 moves, there is nowhere else
 to wander away to.
 
@@ -152,7 +152,7 @@ correspond to solving cubes scrambled by 10 and 100 moves.
 Model sizes are not really comparable between the two model types, since one stores an arbitrary
 representation of cube positions and moves (tuples of Python ints, one per square) while the other
 has an arbitrary representation of weights (32-bit floats). To plot MemorizeSolver curves,
-I recalculated this to a theoretically smallest representation of position-move pairs, which takes
+I recalculated this to a theoretically smallest representation of position-move pairs which takes
 around 25 bits (to distinguish 3,674,160 positions × 6 moves; This is not implemented, but it
 could be). For TorchMLPSolver curves, I used the actual size of 32 bits per weight, and also a
 speculative compression to 8 bits per weight without losing performance (not sure if possible).
@@ -179,7 +179,7 @@ layers, different activations, optimizer params, length of training sequences).
 
 The same architecture of neural network performs very differently when trained on data generated
 by itself, rather than the inverted scrambling sequences. Much smaller networks are able to solve
-the cube in most cases. There was one NN with 906 weights, 3.6kB, which could solve about 95% of
+the cube in most cases. There was one NN with 906 weights, 3.6kB which could solve about 95% of
 thoroughly scrambled cubes. Compare to the previous experiment, where no size of NN could solve
 95% of cubes, while to solve 40% of cubes, about 100kB of neural network was needed.
 
@@ -187,7 +187,7 @@ Paradoxically, large networks perform much worse with bootstrapped training data
 somehow related to the "exploration versus exploitation" problem (see below).
 
 Another clue to a different approach taken by the bootstrapped NNs is the number of moves needed to
-solve a cube, which is much higher than in the previous experiment. Solving a cube scrambled by
+solve a cube which is much higher than in the previous experiment. Solving a cube scrambled by
 10 moves typically takes about 10 moves to a NN trained on inverse scrambling sequences (if it can
 do it at all), while a bootstrapped NN may do 50 or more moves (could be related to the fact that
 training sequences were 100 moves long).
@@ -216,7 +216,7 @@ as its own training samples, thereby losing motivation to learn the others (but 
 experiments to test this specific theory).
 
 Fortunately, the standard remedy -- forcing the solver to do completely random moves every now
-and then -- does help. The most improvement occurs in large NNs, which originally performed
+and then -- does help. The most improvement occurs in large NNs which originally performed
 much worse than smaller ones. There used to be a sweet spot for NN size where 90-95% success
 rates on thoroughly scrambled cubes were achieved; Now, these can do 98% or more, and larger
 NNs perform similarly.
