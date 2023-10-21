@@ -82,7 +82,10 @@ class SuccessRateMetric:
 
 		rate = 1-successRate if self.measureFails else successRate
 		if self.measureMoves:
-			return rate, np.median(solvedInds) if solvedInds else np.nan
+			if solvedInds:
+				return rate, np.median(solvedInds), max(solvedInds)
+			else:
+				return rate, np.nan, np.nan
 		else:
 			return rate
 
