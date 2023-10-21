@@ -156,6 +156,7 @@ class RubikCuboid:
 		stickers = []
 		centers = []
 		faces = []
+		cubeletCoords = []
 
 		X, Y, Z = self.size
 
@@ -163,36 +164,42 @@ class RubikCuboid:
 			for y in range(Y):
 				stickers.append([[0, y, z], [0, y+1, z], [0, y+1, z+1], [0, y, z+1]])
 				centers.append([0, y*2+1, z*2+1])
+				cubeletCoords.append([0, y, z])
 				faces.append(0)
 
 		for z in range(Z):
 			for y in range(Y):
 				stickers.append([[X, y, z], [X, y+1, z], [X, y+1, z+1], [X, y, z+1]])
 				centers.append([X*2, y*2+1, z*2+1])
+				cubeletCoords.append([X-1, y, z])
 				faces.append(1)
 
 		for z in range(Z):
 			for x in range(X):
 				stickers.append([[x, 0, z], [x+1, 0, z], [x+1, 0, z+1], [x, 0, z+1]])
 				centers.append([x*2+1, 0, z*2+1])
+				cubeletCoords.append([x, 0, z])
 				faces.append(2)
 
 		for z in range(Z):
 			for x in range(X):
 				stickers.append([[x, Y, z], [x+1, Y, z], [x+1, Y, z+1], [x, Y, z+1]])
 				centers.append([x*2+1, Y*2, z*2+1])
+				cubeletCoords.append([x, Y-1, z])
 				faces.append(3)
 
 		for y in range(Y):
 			for x in range(X):
 				stickers.append([[x, y, 0], [x+1, y, 0], [x+1, y+1, 0], [x, y+1, 0]])
 				centers.append([x*2+1, y*2+1, 0])
+				cubeletCoords.append([x, y, 0])
 				faces.append(4)
 
 		for y in range(Y):
 			for x in range(X):
 				stickers.append([[x, y, Z], [x+1, y, Z], [x+1, y+1, Z], [x, y+1, Z]])
 				centers.append([x*2+1, y*2+1, Z*2])
+				cubeletCoords.append([x, y, Z-1])
 				faces.append(5)
 
 		self._centers = centers
@@ -216,6 +223,17 @@ class RubikCuboid:
 			self._stickers = self._stickers[mask, ...]
 			self._centers = [c for c, m in zip(self._centers, mask) if m]
 			self.faces = self.faces[mask, ...]
+
+		# assigning squares to cubelets
+
+		cubeletCoords = np.array(cubeletCoords)
+		coord2index = {}
+		for index, coord in enumerate(cubeletCoords):
+			coord = tuple(coord)
+			if coord not in coord2index:
+				coord2index[coord] = index
+		cubelets = [coord2index[tuple(coord)] for coord in cubeletCoords]
+		self.cubelets = np.array(cubelets)
 
 
 	def _findMoving(self, axis, fromBack, thickness, rotation):
