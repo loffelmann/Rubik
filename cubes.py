@@ -404,7 +404,9 @@ class RubikCuboid:
 	def applyRotation(newOrder, position):
 		return position[newOrder]
 
-	applyColorSwap = cy_applyColorSwap
+	@staticmethod
+	def applyColorSwap(swap, position):
+		return cy_applyColorSwap(swap, position)
 
 	@staticmethod
 	def invertRotation(rotation):
@@ -934,7 +936,9 @@ class Rubik_2x2x2:
 	def applyRotation(newOrder, position):
 		return position[newOrder]
 
-	applyColorSwap = cy_applyColorSwap
+	@staticmethod
+	def applyColorSwap(swap, position):
+		return cy_applyColorSwap(swap, position)
 
 	@staticmethod
 	def invertRotation(rotation):
