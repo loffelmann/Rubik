@@ -37,7 +37,7 @@ noMove = Move(MoveType.none, None)
 
 # a type for higher-level transforms of a cube, like resetting to a solved state;
 # used to initialize cube state before further processing
-CubeTransformMethod = Enum("CubeTransformMethod", ["reset", "scramble"])
+CubeTransformMethod = Enum("CubeTransformMethod", ["reset", "scramble", "distinct"])
 CubeTransform = namedtuple("CubeTransform", ["method", "kwargs"])
 
 
@@ -427,6 +427,9 @@ class RubikCuboid:
 			move = self.solvingMoves[moveInd]
 			self.move(move)
 
+	def distinct(self):
+		self.position = np.arange(len(self.faces))
+
 	def init(self, steps=[], seed=None):
 		"""
 		Performs a sequence of higher-level actions - right now either "reset" or "scramble"
@@ -441,6 +444,8 @@ class RubikCuboid:
 				if kwargs.get("seed") is None:
 					kwargs["seed"] = seed
 				self.scramble(**kwargs)
+			elif step.method == CubeTransformMethod.distinct:
+				self.distinct(**step.kwargs)
 			else:
 				raise ValueError(f"Unknown init method: {step.method}")
 
