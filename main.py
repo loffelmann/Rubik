@@ -24,10 +24,6 @@ seqLength = 100
 
 
 
-import time
-startTime = time.time()
-
-
 ## Metrics for solver evaluation ###################################################################
 
 
@@ -238,6 +234,78 @@ def dependencyOnTrainingData(
 
 
 
+class InverseScrambleGenerator:
+
+	def __init__(self, solver, numScrambleMoves=10):
+		self.randomSolver = RandomSolver(solver.cube)
+		self.numScrambleMoves = numScrambleMoves
+
+	def __call__(self):
+		seq = self.randomSolver.generateSequence(
+			numMoves = self.numScrambleMoves,
+			init = CubeTransform(CubeTransformMethod.reset, {}),
+		)
+		return seq.invert().canonize(**canonization).check()
+
+	def earlyStop(self):
+		return False
+
+	def __str__(self):
+		return f"{self.__class__.__name__}(numScrambleMoves={self.numScrambleMoves})"
+
+
+class BootstrapGenerator:
+
+	def __init__(self, solver, *, maxScMoves=50, testMoves=seqLength, targetSR=0.15):
+		self.solver = solver
+		self.maxScMoves = maxScMoves
+		self.testMoves = testMoves
+		self.numGenerated = 0
+		self.meanScMoves = 1
+		self.updateSpeed = 0.02
+		self.targetSR = targetSR
+		self.earlyStopOffset = 200000
+		self.numCallsAfterMaxMoves = 0
+
+	def __call__(self):
+
+		for attempt in range(1000):
+#			scMoves = np.random.poisson(lam = self.meanScMoves) + 1
+			scMoves = int(min(self.meanScMoves, self.maxScMoves))
+			seq = self.solver.generateSequence(
+				numMoves = self.testMoves,
+				init = [
+					CubeTransform(CubeTransformMethod.reset, {}),
+					CubeTransform(CubeTransformMethod.scramble, {"moves": scMoves}),
+				],
+				uniformBias = lambda moveInd, **_: max((1-moveInd/biasLength)*biasAmplitude, 0),
+			)
+
+			if seq.isSolved():
+				seq = seq.simplify()
+				if not seq.moves:
+					continue # a trivial sequence
+
+				self.meanScMoves += self.updateSpeed
+				if self.meanScMoves > self.maxScMoves:
+					self.numCallsAfterMaxMoves += 1
+				statSpeed = 0.001
+				self.numGenerated += 1
+				return seq
+			else:
+				self.meanScMoves = max(self.meanScMoves-self.updateSpeed*self.targetSR, 1)
+
+		raise RuntimeError("Could not generate a successfull sequence")
+
+	def earlyStop(self):
+		return self.numCallsAfterMaxMoves >= self.earlyStopOffset
+#		return self.meanScMoves > self.maxScMoves*10
+
+	def __str__(self):
+		return f"{self.__class__.__name__}(maxScMoves={self.maxScMoves}, testMoves={self.testMoves}, targetSR={self.targetSR})"
+
+
+
 class MyReduceLROnPlateau(torch.optim.lr_scheduler.ReduceLROnPlateau):
 
 	def __init__(self, metric, metricKwargs, *args, **kwargs):
@@ -249,6 +317,9 @@ class MyReduceLROnPlateau(torch.optim.lr_scheduler.ReduceLROnPlateau):
 		loss = self.my_metric(**self.my_metric_kwargs)
 		return super().step(loss)
 
+
+
+## NN building blocks ##############################################################################
 
 
 class RNNWithInit(nn.Module):
@@ -297,11 +368,9 @@ class LSTMWithInit(nn.Module):
 		return d
 
 
-# Train a new solver
-#loadSolver = None
 
-# Load a saved solver
-loadSolver = "./trained_solvers/bootstrap200_906weights.pickle"
+## Cube building resources #########################################################################
+
 
 def noCorners(cube, center, **_):
 	return ((center > 1) & (center//2+1 < cube.size)).any()
@@ -309,331 +378,292 @@ def noCorners(cube, center, **_):
 def noEdges(cube, center, **_):
 	return ((center > 1) & (center//2+1 < cube.size)).sum() != 1
 
-if loadSolver:
-
-	## Load solver #################################################################################
-
-
-	with open(loadSolver, "rb") as f:
-		solverData = pickle.load(f)
-
-	cube = solverData["cube"]
-	solver = solverData["solver"]
-
-
-else:
-
-	## Train solver ################################################################################
-
-
-	canonization = {
-#		"rotationEquivalent": True,
-#		"colorSwapEquivalent": 1,
-	}
-
-	print("\ncanonization:", canonization)
 
 
 
-#	cube = Rubik_2x2x2()
-	cube = Rubik_2x2x2(fixCorner=True)
-
-	print("\ncube:", cube)
-
-#	cube.repl()
+if __name__ == "__main__":
 
 
+	# Train a new solver
+	loadSolver = None
 
-	## Counting reachable positions ########################
+#	# Load a saved solver
+#	loadSolver = "./trained_solvers/bootstrap200_906weights.pickle"
 
-#	total = 0
-#	for numMoves, positions in enumerate(cube.getPositionsAfter(15, **canonization)):
-#		new = len(positions)
-#		total += new
-#		print(f"{numMoves} moves: {new} new positions, {total} total")
+	if loadSolver:
 
-
-
-	## Define a solver #####################################
+		## Load solver #############################################################################
 
 
-#	solver = MemorizeSolver(cube, canonization, random=True)
+		with open(loadSolver, "rb") as f:
+			solverData = pickle.load(f)
+
+		cube = solverData["cube"]
+		solver = solverData["solver"]
 
 
-	width = 50
-	depth = 3
-	colorEnc = "binary"
-	activation = nn.SiLU
-
-	biasAmplitude = 0.05
-	biasLength = 10
-
-	solver = TorchMLPSolver(cube, canonization,
-#		loss = ClippedLoss(torch.nn.CrossEntropyLoss(reduction="none"), 0.7, 5),
-		colorEncoding = colorEnc,
-	)
-
-	net = nn.Sequential(
-		nn.Linear(solver.numFeatures, width),
-		activation(),
-	)
-	for _ in range(1, depth):
-		net.append(nn.Linear(width, width))
-		net.append(activation())
-	net.append(nn.Linear(width, solver.numMoves))
-
-#	net = nn.Sequential(
-#		nn.Linear(solver.numFeatures, width),
-#		activation(),
-#		RNNWithInit(width, width, nonlinearity="relu"),
-##		LSTMWithInit(width, width),
-#		nn.Linear(width, width),
-#		activation(),
-#		nn.Linear(width, solver.numMoves),
-#	)
-
-	solver.setModel(net.cpu())
-
-	optimizer = torch.optim.Adam(solver.getParam(), lr=1e-3)
-	solver.setOptimizer(optimizer)
+	else:
 
 
-#	schedulerParams = {
-#		"milestones": [10, 30, 100, 300, 1000, 3000],
-#		"gamma": 0.5,
-#	}
-#	scheduler = torch.optim.lr_scheduler.MultiStepLR(
-#		optimizer,
-#		**schedulerParams,
-#	)
-#	solver.setScheduler(scheduler)
+		import time
+		startTime = time.time()
 
-	schedulerParams = {
-		"patience": 3,
-		"factor": 0.5,
-	}
-	scheduler = MyReduceLROnPlateau(
-		SuccessRateMetric(
-			scramblingMoves = 10,
-			samples = 500,
-			measureFails = True,
-			measureMoves = False,
-			threads = metricThreads,
-			seed = np.random.randint(0x7FFFFFFFFFFFFFFF),
-		),
-		{ "solver": solver },
-		optimizer,
-		**schedulerParams,
-	)
-	solver.setScheduler(scheduler, 10000)
+		## Train solver ############################################################################
 
 
-	print("\nsolver:", solver)
-	print("scheduler params:", schedulerParams)
+		canonization = {
+#			"rotationEquivalent": True,
+#			"colorSwapEquivalent": 1,
+		}
+
+		print("\ncanonization:", canonization)
 
 
 
-	## Train the solver ####################################
+#		cube = Rubik_2x2x2()
+		cube = Rubik_2x2x2(fixCorner=True)
 
+		print("\ncube:", cube)
 
-	class InverseScrambleGenerator:
-
-		def __init__(self, solver, numScrambleMoves=10):
-			self.randomSolver = RandomSolver(solver.cube)
-			self.numScrambleMoves = numScrambleMoves
-
-		def __call__(self):
-			seq = self.randomSolver.generateSequence(
-				numMoves = self.numScrambleMoves,
-				init = CubeTransform(CubeTransformMethod.reset, {}),
-			)
-			return seq.invert().canonize(**canonization).check()
-
-		def earlyStop(self):
-			return False
-
-		def __str__(self):
-			return f"{self.__class__.__name__}(numScrambleMoves={self.numScrambleMoves})"
-
-
-	class BootstrapGenerator:
-
-		def __init__(self, solver, *, maxScMoves=50, testMoves=seqLength, targetSR=0.15):
-			self.solver = solver
-			self.maxScMoves = maxScMoves
-			self.testMoves = testMoves
-			self.numGenerated = 0
-			self.meanScMoves = 1
-			self.updateSpeed = 0.02
-			self.targetSR = targetSR
-			self.earlyStopOffset = 200000
-			self.numCallsAfterMaxMoves = 0
-
-		def __call__(self):
-
-			for attempt in range(1000):
-#				scMoves = np.random.poisson(lam = self.meanScMoves) + 1
-				scMoves = int(min(self.meanScMoves, self.maxScMoves))
-				seq = self.solver.generateSequence(
-					numMoves = self.testMoves,
-					init = [
-						CubeTransform(CubeTransformMethod.reset, {}),
-						CubeTransform(CubeTransformMethod.scramble, {"moves": scMoves}),
-					],
-					uniformBias = lambda moveInd, **_: max((1-moveInd/biasLength)*biasAmplitude, 0),
-				)
-
-				if seq.isSolved():
-					seq = seq.simplify()
-					if not seq.moves:
-						continue # a trivial sequence
-
-					self.meanScMoves += self.updateSpeed
-					if self.meanScMoves > self.maxScMoves:
-						self.numCallsAfterMaxMoves += 1
-					statSpeed = 0.001
-					self.numGenerated += 1
-					return seq
-				else:
-					self.meanScMoves = max(self.meanScMoves-self.updateSpeed*self.targetSR, 1)
-
-			raise RuntimeError("Could not generate a successfull sequence")
-
-		def earlyStop(self):
-			return self.numCallsAfterMaxMoves >= self.earlyStopOffset
-#			return self.meanScMoves > self.maxScMoves*10
-
-		def __str__(self):
-			return f"{self.__class__.__name__}(maxScMoves={self.maxScMoves}, testMoves={self.testMoves}, targetSR={self.targetSR})"
-
-
-#	trainSeqGen = InverseScrambleGenerator(solver)
-	trainSeqGen = BootstrapGenerator(solver, targetSR=0.05)
-
-	seqCounts = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 750000, 1000000,
-	             1250000, 1500000, 1750000, 2000000, 2500000, 3000000, 4000000, 5000000]
-
-	print("\ndata generator:", trainSeqGen, "\n")
+#		cube.repl()
 
 
 
-#	# testing if recurrent neural nets are actually recurrent; see if they can
-#	# reproduce a sequence whose items are determined only by their index in the sequence
-#	trainSeq = InverseScrambleGenerator(solver)()
-#	trainSeq.positions = np.tile(trainSeq.positions[:1, :], (11, 1))
-#	trainMoves = trainSeq.moves
-#	def hitRate(solver, **kwargs):
-#		attempts = 10
-#		hits = 0
-#		for _ in range(attempts):
-#			solver.cube.position = trainSeq.positions[0, :].copy()
-#			seq = solver.generateSequence(
-#				numMoves = len(trainMoves),
-#				init = [],
-#			)
-#			for m1, m2 in zip(trainMoves, seq.moves):
-#				if m1 == m2:
-#					hits += 1
-#		return hits / len(trainMoves) / attempts
-#	def trainSeqGen():
+		## Counting reachable positions ####################
+
+#		total = 0
+#		for numMoves, positions in enumerate(cube.getPositionsAfter(15, **canonization)):
+#			new = len(positions)
+#			total += new
+#			print(f"{numMoves} moves: {new} new positions, {total} total")
+
+
+
+		## Define a solver #################################
+
+
+#		solver = MemorizeSolver(cube, canonization, random=True)
+
+
+		width = 50
+		depth = 3
+		colorEnc = "binary"
+		activation = nn.SiLU
+
+		biasAmplitude = 0.05
+		biasLength = 10
+
+		solver = TorchMLPSolver(cube, canonization,
+			colorEncoding = colorEnc,
+		)
+
+		net = nn.Sequential(
+			nn.Linear(solver.numFeatures, width),
+			activation(),
+		)
+		for _ in range(1, depth):
+			net.append(nn.Linear(width, width))
+			net.append(activation())
+		net.append(nn.Linear(width, solver.numMoves))
+
+#		net = nn.Sequential(
+#			nn.Linear(solver.numFeatures, width),
+#			activation(),
+#			RNNWithInit(width, width, nonlinearity="relu"),
+#	#		LSTMWithInit(width, width),
+#			nn.Linear(width, width),
+#			activation(),
+#			nn.Linear(width, solver.numMoves),
+#		)
+
+		solver.setModel(net.cpu())
+
+		optimizer = torch.optim.Adam(solver.getParam(), lr=1e-3)
+		solver.setOptimizer(optimizer)
+
+
+#		schedulerParams = {
+#			"milestones": [10, 30, 100, 300, 1000, 3000],
+#			"gamma": 0.5,
+#		}
+#		scheduler = torch.optim.lr_scheduler.MultiStepLR(
+#			optimizer,
+#			**schedulerParams,
+#		)
+#		solver.setScheduler(scheduler)
+
+		schedulerParams = {
+			"patience": 3,
+			"factor": 0.5,
+		}
+		scheduler = MyReduceLROnPlateau(
+			SuccessRateMetric(
+				scramblingMoves = 10,
+				samples = 500,
+				measureFails = True,
+				measureMoves = False,
+				threads = metricThreads,
+				seed = np.random.randint(0x7FFFFFFFFFFFFFFF),
+			),
+			{ "solver": solver },
+			optimizer,
+			**schedulerParams,
+		)
+		solver.setScheduler(scheduler, 10000)
+
+
+		print("\nsolver:", solver)
+		print("scheduler params:", schedulerParams)
+
+
+
+		## Train the solver ################################
+
+
+#		trainSeqGen = InverseScrambleGenerator(solver)
+		trainSeqGen = BootstrapGenerator(solver, targetSR=0.05)
+
+		seqCounts = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 300000, 400000, 500000, 750000, 1000000,
+		             1250000, 1500000, 1750000, 2000000, 2500000, 3000000, 4000000, 5000000]
+
+		print("\ndata generator:", trainSeqGen, "\n")
+
+
+
+#		# testing if recurrent neural nets are actually recurrent; see if they can
+#		# reproduce a sequence whose items are determined only by their index in the sequence
 #		trainSeq = InverseScrambleGenerator(solver)()
 #		trainSeq.positions = np.tile(trainSeq.positions[:1, :], (11, 1))
-#		trainSeq.moves = trainMoves
-#		return trainSeq
-#	metricValues = dependencyOnTrainingData(
-#		solver,
-#		range(0, 2001, 100),
-#		trainSeqGen,
-#		{
-#			"hit rate": hitRate,
-#		},
-#	)
-#	print(metricValues["hit rate"])
-#	exit()
+#		trainMoves = trainSeq.moves
+#		def hitRate(solver, **kwargs):
+#			attempts = 10
+#			hits = 0
+#			for _ in range(attempts):
+#				solver.cube.position = trainSeq.positions[0, :].copy()
+#				seq = solver.generateSequence(
+#					numMoves = len(trainMoves),
+#					init = [],
+#				)
+#				for m1, m2 in zip(trainMoves, seq.moves):
+#					if m1 == m2:
+#						hits += 1
+#			return hits / len(trainMoves) / attempts
+#		def trainSeqGen():
+#			trainSeq = InverseScrambleGenerator(solver)()
+#			trainSeq.positions = np.tile(trainSeq.positions[:1, :], (11, 1))
+#			trainSeq.moves = trainMoves
+#			return trainSeq
+#		metricValues = dependencyOnTrainingData(
+#			solver,
+#			range(0, 2001, 100),
+#			trainSeqGen,
+#			{
+#				"hit rate": hitRate,
+#			},
+#		)
+#		print(metricValues["hit rate"])
+#		exit()
+
+
+		def finalMeas():
+			finalPerf = {
+				"scrambling moves": [],
+				"success rate": [],
+				"median solving moves": [],
+			}
+			for scMoves in list(range(2, 31, 2))+[50, 100]:
+				metric = SuccessRateMetric(scMoves, 5000, threads=metricThreads)
+				solved, medMoves, maxMoves = metric(solver)
+				print(f"  success rate {scMoves} = {solved:.3f}, median moves {medMoves}")
+				finalPerf["scrambling moves"].append(scMoves)
+				finalPerf["success rate"].append(solved)
+				finalPerf["median solving moves"].append(medMoves)
+			return finalPerf
 
 
 
-	metricValues = dependencyOnTrainingData(
-		solver,
-		seqCounts,
-		trainSeqGen,
-		{
-			("success rate 5", "moves needed 5"):
-				SuccessRateMetric( 5, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
-			("success rate 10", "moves needed 10"):
-				SuccessRateMetric(10, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
-			("success rate 20", "moves needed 20"):
-				SuccessRateMetric(20, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
-			("success rate 100", "moves needed 100"):
-				SuccessRateMetric(100, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
-			"learning rate": learningRateMetric,
-			"memory size": memorySizeMetric,
-			"num weights": numWeightsMetric,
-			"train sequences": trainingDataAmountMetric,
-			"training duration": trainingDurationMetric,
-		},
-		earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7 or trainSeqGen.earlyStop(),
-	)
+		try:
+			metricValues = dependencyOnTrainingData(
+				solver,
+				seqCounts,
+				trainSeqGen,
+				{
+					("success rate 5", "moves needed 5", "max moves 5"):
+						SuccessRateMetric( 5, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+					("success rate 10", "moves needed 10", "max moves 10"):
+						SuccessRateMetric(10, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+					("success rate 20", "moves needed 20", "max moves 20"):
+						SuccessRateMetric(20, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+					("success rate 100", "moves needed 100", "max moves 100"):
+						SuccessRateMetric(100, 500, threads=metricThreads, seed=np.random.randint(0x7FFFFFFFFFFFFFFF)),
+					"learning rate": learningRateMetric,
+					"memory size": memorySizeMetric,
+					"num weights": numWeightsMetric,
+					"train sequences": trainingDataAmountMetric,
+					"training duration": trainingDurationMetric,
+				},
+				earlyStop = lambda metricValues, **kwargs: metricValues["learning rate"][-1] < 1e-7 or trainSeqGen.earlyStop(),
+			)
+		except:
+			traceback.print_exc()
+			breakpoint()
 
 
 
-	for name in ["memory size", "num weights", "learning rate", "train sequences", "training duration"]:
-		print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
+		for name in ["memory size", "num weights", "learning rate", "train sequences", "training duration"]:
+			print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
 
-	plt.subplot(211)
-	for name in ["success rate 5", "success rate 10", "success rate 20", "success rate 100"]:
-		print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
-		plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
-	plt.ylim(0, 1)
-	plt.grid()
-	plt.legend()
+		plt.subplot(211)
+		for name in ["success rate 5", "success rate 10", "success rate 20", "success rate 100"]:
+			print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
+			plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
+		plt.ylim(0, 1)
+		plt.grid()
+		plt.legend()
 
-	plt.subplot(212)
-	for name in ["moves needed 5", "moves needed 10", "moves needed 20", "moves needed 100"]:
-		print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
-		plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
-	plt.grid()
-	plt.legend()
+		plt.subplot(212)
+		for name in ["moves needed 5", "moves needed 10", "moves needed 20", "moves needed 100"]:
+			print(f"\n{name}:\n\t" + "\n\t".join(map(str, metricValues[name])))
+			plt.semilogx(np.maximum(metricValues["train sequences"], 1), metricValues[name], label=name)
+		plt.grid()
+		plt.legend()
 
-	plt.show()
-
-
-	def finalMeas():
-		for scMoves in list(range(2, 31, 2))+[50, 100]:
-			metric = SuccessRateMetric(scMoves, 5000, threads=metricThreads)
-			solved, moves = metric(solver)
-			print(f"  success rate {scMoves} = {solved:.3f}, median moves {moves}")
-
-	print("\nFully trained solver performance:")
-	finalMeas()
-
-	print(f"\nduration: {round((time.time()-startTime)/60)} min")
-
-	saveNote = ""
-	savePath = saveNote + datetime.now().strftime("%Y-%m-%d_%H.%M.%S") + ".pickle"
-	breakpoint()
-	try:
-		with open(savePath, "wb") as f:
-			pickle.dump({
-				"solver": solver,
-				"cube": cube,
-				"canonization": canonization,
-				"metric values": metricValues,
-			}, f)
-	except:
-		traceback.print_exc()
+		plt.show()
 
 
 
-## Visualize solver runs ###################################
 
-while True:
-	seq = solver.generateSequence(numMoves=100, init=[
-		CubeTransform(CubeTransformMethod.reset, {}),
-		CubeTransform(CubeTransformMethod.scramble, {"moves": 9}),
-	])
-	seq = seq.simplify()
-	seq.check()
-	seq.animate()
-	plt.show() # keep matplotlib window open
+		print("\nFully trained solver performance:")
+		finalPerf = finalMeas()
+
+		print(f"\nduration: {round((time.time()-startTime)/60)} min")
+
+		saveNote = ""
+		savePath = saveNote + datetime.now().strftime("%Y-%m-%d_%H.%M.%S") + ".pickle"
+		breakpoint()
+		try:
+			with open(savePath, "wb") as f:
+				pickle.dump({
+					"solver": solver,
+					"cube": cube,
+					"canonization": canonization,
+					"metric values": metricValues,
+					"final performance": finalPerf,
+				}, f)
+		except:
+			traceback.print_exc()
+
+
+
+	## Visualize solver runs ###############################
+
+	while True:
+		seq = solver.generateSequence(numMoves=100, init=[
+			CubeTransform(CubeTransformMethod.reset, {}),
+			CubeTransform(CubeTransformMethod.scramble, {"moves": 9}),
+		])
+		seq = seq.simplify()
+		seq.check()
+		seq.animate()
+		plt.show() # keep matplotlib window open
 
