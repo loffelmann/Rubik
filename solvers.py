@@ -170,7 +170,7 @@ class TorchMLPSolver(RubikSolver):
 	):
 		self.predictMode = predictMode
 
-		self.loss = loss if loss is not None else torch.nn.CrossEntropyLoss()
+		self.loss = loss if loss is not None else torch.nn.CrossEntropyLoss(reduction="sum")
 		self.temperature = 1.0
 
 		self.model = None
