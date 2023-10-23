@@ -259,7 +259,7 @@ class InverseScrambleGenerator:
 
 class BootstrapGenerator:
 
-	def __init__(self, solver, *, maxScMoves=50, testMoves=seqLength, targetSR=0.15):
+	def __init__(self, solver, *, maxScMoves=50, testMoves=seqLength, targetSR=0.15, resetScheduler=None):
 		self.solver = solver
 		self.maxScMoves = maxScMoves
 		self.testMoves = testMoves
@@ -269,10 +269,12 @@ class BootstrapGenerator:
 		self.targetSR = targetSR
 		self.earlyStopOffset = 200000
 		self.numCallsAfterMaxMoves = 0
+		self.maxAttempts = 300
+		self.resetScheduler = resetScheduler
 
 	def __call__(self):
 
-		for attempt in range(1000):
+		for attempt in range(self.maxAttempts):
 #			scMoves = np.random.poisson(lam = self.meanScMoves) + 1
 			scMoves = int(min(self.meanScMoves, self.maxScMoves))
 			seq = self.solver.generateSequence(
@@ -298,7 +300,14 @@ class BootstrapGenerator:
 			else:
 				self.meanScMoves = max(self.meanScMoves-self.updateSpeed*self.targetSR, 1)
 
-		raise RuntimeError("Could not generate a successfull sequence")
+		if self.meanScMoves > 5: # difficulty reset to fix instability
+			print("difficulty reset")
+			self.meanScMoves = 1
+			self.resetScheduler.step()
+			return self()
+
+		else: # difficulty reset did not help
+			raise RuntimeError("Could not generate a successfull sequence")
 
 	def earlyStop(self):
 		return self.numCallsAfterMaxMoves >= self.earlyStopOffset
@@ -524,7 +533,10 @@ if __name__ == "__main__":
 
 
 #		trainSeqGen = InverseScrambleGenerator(solver)
-		trainSeqGen = BootstrapGenerator(solver, targetSR=0.05)
+		trainSeqGen = BootstrapGenerator(solver,
+			targetSR = 0.05,
+			resetScheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.5),
+		)
 
 		seqCounts = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 300000, 400000, 500000, 750000, 1000000,
 		             1250000, 1500000, 1750000, 2000000, 2500000, 3000000, 4000000, 5000000]
